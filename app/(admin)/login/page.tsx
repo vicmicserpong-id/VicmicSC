@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -37,9 +38,7 @@ export default function LoginPage() {
   return (
     <div className="mx-auto flex min-h-full w-full max-w-sm flex-1 flex-col justify-center px-4 py-10">
       <div className="mb-6 flex flex-col items-center text-center">
-        <span className="mb-3 grid size-12 place-items-center rounded-xl bg-[#0f172a] text-xl font-bold text-white">
-          V
-        </span>
+        <Image src="/logo-mark.png" alt="Vicmic" width={48} height={48} className="mb-3" priority />
         <h1 className="text-lg font-semibold">Masuk Staf</h1>
         <p className="mt-1 text-sm text-muted-foreground">Vicmic Service System</p>
       </div>

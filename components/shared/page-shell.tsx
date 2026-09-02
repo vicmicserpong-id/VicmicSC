@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 
 import { cn } from "@/lib/utils";
 
@@ -16,9 +17,7 @@ export function PageShell({
     <div className="mx-auto flex w-full max-w-md flex-1 flex-col px-4 pb-10 pt-4">
       <header className="mb-5 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2">
-          <span className="grid size-8 place-items-center rounded-lg bg-[#0f172a] text-sm font-bold text-white">
-            V
-          </span>
+          <Image src="/logo-mark.png" alt="Vicmic" width={32} height={32} priority />
           <span className="text-sm font-semibold tracking-tight">Vicmic Service</span>
         </Link>
         {back ? (

@@ -17,6 +17,7 @@ harian otomatis**. PWA — bisa di-install di HP pelanggan maupun tablet staf.
 | Tanda tangan | `react-signature-canvas` |
 | Email | Resend |
 | Hosting & Cron | Vercel |
+| Brand | Logo Vicmic Serpong (`public/logo-mark.png` — dipakai di UI & ikon PWA/favicon; `public/logo.png` — lockup lengkap dgn wordmark) |
 
 ## Setup lokal
 
@@ -101,8 +102,14 @@ Server action tunggal `lib/actions/tickets.ts` → `updateTicketStatus()` menega
 berdasarkan role pemanggil:
 - **Teknisi**: hanya boleh mengikuti `TICKET_STATUS_FLOW` — alur MAJU murni, tanpa jalur
   mundur/lateral sama sekali (mis. `QC_TESTING` tidak bisa balik ke `IN_REPAIR`). Semua
-  teknisi bisa melihat & mengubah **semua** tiket aktif (bukan cuma yang mereka tarik
-  sendiri), supaya unit tidak macet kalau teknisi yang menarik sedang libur.
+  teknisi bisa melihat & mengubah **semua** tiket yang sudah ditarik (bukan cuma yang
+  mereka tarik sendiri), supaya unit tidak macet kalau teknisi yang menarik sedang libur.
+  Tiket **baru** (`INTAKE`, belum ditarik siapa pun) sengaja **tidak muncul** di daftar
+  Workbench — supaya teknisi tidak bisa pilih-pilih dan urutan antrean tetap terjaga.
+  Satu-satunya jalan masuk adalah tombol "Tarik Tiket Berikutnya (FIFO)", yang mengunci
+  tiket `INTAKE` tertua (RPC `pull_next_ticket`, `FOR UPDATE SKIP LOCKED`) dan langsung
+  menandainya `DIAGNOSING` untuk teknisi tersebut. Server action `updateTicketStatus`
+  menolak setiap upaya teknisi mengubah status langsung dari `INTAKE` (harus lewat FIFO).
 - **Admin / owner**: bebas pindah ke status apa pun (mis. mengoreksi kesalahan input atau
   membalik status), TAPI wajib mengisi catatan alasan perubahan. Lewat `/admin/tickets/[id]`
   atau Daftar Servis `/admin/tickets`.

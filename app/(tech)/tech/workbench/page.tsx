@@ -16,7 +16,7 @@ export default async function WorkbenchPage() {
       .select(
         "id, ticket_number, customer_name, product_description, status, complaint_description, assigned_technician, created_at, updated_at",
       )
-      .not("status", "in", "(CLOSED,CANCELLED)")
+      .not("status", "in", "(INTAKE,CLOSED,CANCELLED)")
       .order("updated_at", { ascending: true }),
     supabase
       .from("service_tickets")

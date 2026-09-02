@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { ClipboardList, Search, ArrowRight } from "lucide-react";
 
 export const metadata = {
@@ -9,9 +10,7 @@ export default function PortalPage() {
   return (
     <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-4 py-10">
       <div className="mb-8 flex flex-col items-center text-center">
-        <span className="mb-3 grid size-14 place-items-center rounded-2xl bg-[#0f172a] text-2xl font-bold text-white">
-          V
-        </span>
+        <Image src="/logo-mark.png" alt="Vicmic" width={56} height={56} className="mb-3" priority />
         <h1 className="text-xl font-semibold tracking-tight">Vicmic Service</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Selamat datang. Silakan pilih layanan di bawah.

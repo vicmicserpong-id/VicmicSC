@@ -59,7 +59,7 @@ export function Workbench({
       supabase
         .from("service_tickets")
         .select(SELECT_COLUMNS)
-        .not("status", "in", "(CLOSED,CANCELLED)")
+        .not("status", "in", "(INTAKE,CLOSED,CANCELLED)")
         .order("updated_at", { ascending: true }),
       supabase
         .from("service_tickets")

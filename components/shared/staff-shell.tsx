@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { LogOut } from "lucide-react";
 
 import { StaffNav } from "@/components/shared/staff-nav";
@@ -32,9 +33,7 @@ export function StaffShell({
       <header className="border-b bg-background">
         <div className="mx-auto flex h-14 w-full max-w-5xl items-center gap-4 px-4">
           <Link href={NAV[area][0].href} className="flex items-center gap-2">
-            <span className="grid size-7 place-items-center rounded-md bg-[#0f172a] text-xs font-bold text-white">
-              V
-            </span>
+            <Image src="/logo-mark.png" alt="Vicmic" width={28} height={28} priority />
             <span className="text-sm font-semibold tracking-tight">Vicmic</span>
           </Link>
 

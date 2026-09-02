@@ -17,7 +17,7 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   images: {
     remotePatterns: [
-      // Supabase Storage — bucket publik untuk foto unit & tanda tangan
+      // Supabase Storage — bucket publik untuk foto unit
       {
         protocol: "https",
         hostname: "tmgivkpadfixkhkxltup.supabase.co",

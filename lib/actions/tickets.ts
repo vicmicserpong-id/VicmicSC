@@ -72,6 +72,11 @@ export async function updateTicketStatus(input: StatusChange) {
       throw new Error("Wajib isi catatan alasan perubahan status.");
     }
   } else {
+    if (input.from === "INTAKE") {
+      throw new Error(
+        'Tiket baru harus ditarik lewat tombol "Tarik Tiket Berikutnya" (FIFO), bukan diubah langsung.',
+      );
+    }
     const allowed = TICKET_STATUS_FLOW[input.from] ?? [];
     if (!allowed.includes(input.to)) {
       throw new Error(`Transisi ${input.from} → ${input.to} tidak diizinkan.`);
