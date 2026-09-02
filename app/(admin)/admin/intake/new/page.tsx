@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 
 import { IntakeForm } from "./intake-form";
 
-export const metadata = { title: "Intake Unit" };
+export const metadata = { title: "Servis Baru" };
 export const dynamic = "force-dynamic";
 
 export default async function IntakeNewPage({

@@ -9,7 +9,7 @@ const NAV: Record<"admin" | "tech", { href: string; label: string; ownerOnly?: b
   admin: [
     { href: "/admin/queue", label: "Antrean" },
     { href: "/admin/tickets", label: "Daftar Servis" },
-    { href: "/admin/intake/new", label: "Intake" },
+    { href: "/admin/intake/new", label: "Servis Baru" },
     { href: "/admin/pickup", label: "Pengambilan" },
     { href: "/admin/staff", label: "Staf", ownerOnly: true },
   ],

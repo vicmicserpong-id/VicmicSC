@@ -80,9 +80,11 @@ update public.profiles set role = 'technician' where id = '<uuid>';
 /login                    Masuk staf
 /admin/queue              Papan panggil meja depan (realtime)
 /admin/tickets            Daftar Servis — papan status Kanban semua tiket (realtime, pencarian)
-/admin/intake/new         Form intake unit (foto, tanda tangan)
+/admin/intake/new         Servis Baru — form penerimaan unit (foto)
 /admin/pickup             Validasi & penyerahan unit
-/admin/tickets/[id]       Detail tiket — admin/owner bisa ubah status BEBAS + wajib catatan
+/admin/tickets/[id]       Detail tiket — admin/owner bisa ubah status BEBAS + wajib catatan,
+                          serta edit data / hapus tiket
+/admin/tickets/[id]/edit  Koreksi data tiket (salah input saat Servis Baru) — admin/owner
 /admin/staff              Kelola staf (owner) + reset data uji coba
 /tech/workbench           Dashboard teknisi + Tarik Tiket FIFO (semua tiket aktif terlihat)
 /tech/workbench/[id]      Detail tiket — teknisi mengikuti alur status (tak bisa mundur)
@@ -109,6 +111,11 @@ Setiap perubahan status selalu tercatat di `service_ticket_logs` (siapa, dari st
 ke status apa, catatan, waktu) dan ditampilkan di riwayat tiket — tidak bisa
 dipalsukan/dihapus dari UI.
 
+Admin/owner juga bisa **mengoreksi data tiket** (nama, kontak, deskripsi unit, kelengkapan,
+keluhan, kondisi fisik) lewat `/admin/tickets/[id]/edit`, atau **menghapus tiket** sepenuhnya
+(mis. salah input/tiket ganda) lewat tombol Hapus di halaman detail — keduanya ditolak untuk
+role teknisi (`lib/auth.ts` → `requireFrontDesk()`).
+
 Aplikasi ini murni untuk **alur kerja (workflow)** — pelacakan biaya/pembayaran per unit
 tidak lagi ditampilkan di intake, workbench, maupun pengambilan.
 
@@ -116,6 +123,7 @@ tidak lagi ditampilkan di intake, workbench, maupun pengambilan.
 
 - **Object storage**: Supabase Storage, bukan Cloudflare R2 (R2 minta kartu kredit).
 - **Upload**: langsung dari browser ke Storage (RLS staf) + kompres wajib di klien — bukan lewat `/api/upload`.
+- **Tanda tangan pelanggan**: dihapus dari alur Servis Baru — kolom `customer_signature_url` masih ada di skema untuk kompatibilitas, tapi tidak diisi lagi.
 - **Next.js 15** (bukan 14); **shadcn v4 / Base UI** (bukan Radix).
 - **Cron 22:00 WIB** = `0 15 * * *` UTC (PRD tulis `0 22` yang sebenarnya 05:00 WIB).
 - API route `/api/queue/next` & `/api/ticket/pull-fifo` tidak dibuat — diganti panggilan RPC + Server Actions.

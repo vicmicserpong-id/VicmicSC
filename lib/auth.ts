@@ -43,3 +43,12 @@ export async function requireOwner(): Promise<Staff> {
   }
   return staff;
 }
+
+/** Seperti getStaff() tapi melempar bila teknisi. Untuk koreksi data tiket (admin/owner). */
+export async function requireFrontDesk(): Promise<Staff> {
+  const staff = await getStaff();
+  if (staff.role === "technician") {
+    throw new Error("Hanya admin atau owner yang boleh melakukan aksi ini.");
+  }
+  return staff;
+}

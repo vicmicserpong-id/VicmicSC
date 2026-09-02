@@ -20,10 +20,7 @@ export async function compressImage(file: File | Blob): Promise<File> {
 }
 
 /** Kompres lalu upload ke bucket `vicmic-photos`. Mengembalikan URL publik. */
-export async function uploadImage(
-  file: File | Blob,
-  folder: "units" | "signatures",
-): Promise<string> {
+export async function uploadImage(file: File | Blob, folder: "units"): Promise<string> {
   const compressed = await compressImage(file);
   const supabase = createClient();
   const path = `${folder}/${Date.now()}-${crypto.randomUUID()}.webp`;
@@ -35,14 +32,4 @@ export async function uploadImage(
   if (error) throw new Error(error.message);
 
   return supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path).data.publicUrl;
-}
-
-/** dataURL (dari signature canvas) -> Blob */
-export function dataUrlToBlob(dataUrl: string): Blob {
-  const [head, body] = dataUrl.split(",");
-  const mime = head.match(/:(.*?);/)?.[1] ?? "image/png";
-  const bin = atob(body);
-  const arr = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
-  return new Blob([arr], { type: mime });
 }

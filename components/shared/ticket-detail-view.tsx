@@ -4,13 +4,21 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Loader2, MessageCircle, Check } from "lucide-react";
+import { ArrowLeft, Loader2, MessageCircle, Check, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { TicketStatusBadge } from "@/components/shared/status-badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import {
   TICKET_STATUS_FLOW,
   TICKET_STATUS_LABEL,
@@ -22,6 +30,7 @@ import {
 import { formatDateTimeWIB, waLink } from "@/lib/format";
 import type { Database } from "@/lib/database.types";
 import { updateTicketStatus } from "@/lib/actions/tickets";
+import { deleteTicket } from "@/app/(admin)/admin/tickets/[id]/data-actions";
 
 type Ticket = Database["public"]["Tables"]["service_tickets"]["Row"];
 type Log = Pick<
@@ -65,6 +74,8 @@ export function TicketDetailView({
   const [partNotes, setPartNotes] = useState(ticket.part_notes ?? "");
   const [qcNotes, setQcNotes] = useState(ticket.qc_notes ?? "");
   const [pending, startTransition] = useTransition();
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, startDelete] = useTransition();
 
   const acc = ticket.accessories as unknown as AccessoriesShape;
   const nextOptions =
@@ -78,6 +89,19 @@ export function TicketDetailView({
   }
 
   const req = target ? needs(target) : null;
+
+  function confirmDelete() {
+    startDelete(async () => {
+      try {
+        await deleteTicket(ticket.id);
+        toast.success(`Tiket ${ticket.ticket_number} dihapus.`);
+        router.push("/admin/tickets");
+      } catch (e) {
+        toast.error((e as Error).message);
+        setDeleteOpen(false);
+      }
+    });
+  }
 
   function submit() {
     if (!target || !req) return;
@@ -139,8 +163,48 @@ export function TicketDetailView({
             </p>
           )}
         </div>
-        <TicketStatusBadge status={ticket.status} />
+        <div className="flex flex-col items-end gap-2">
+          <TicketStatusBadge status={ticket.status} />
+          {mode === "admin" && (
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" render={<Link href={`/admin/tickets/${ticket.id}/edit`} />}>
+                <Pencil className="size-3.5" /> Edit
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-destructive text-destructive hover:bg-destructive/10"
+                onClick={() => setDeleteOpen(true)}
+              >
+                <Trash2 className="size-3.5" /> Hapus
+              </Button>
+            </div>
+          )}
+        </div>
       </div>
+
+      {mode === "admin" && (
+        <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Hapus tiket {ticket.ticket_number}?</DialogTitle>
+              <DialogDescription>
+                Seluruh data unit, foto, dan riwayat status tiket ini akan terhapus permanen.
+                Tindakan ini tidak bisa dibatalkan.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setDeleteOpen(false)} disabled={deleting}>
+                Batal
+              </Button>
+              <Button variant="destructive" onClick={confirmDelete} disabled={deleting}>
+                {deleting ? <Loader2 className="animate-spin" /> : <Trash2 className="size-3.5" />}
+                Ya, Hapus
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* Ubah status */}
       <section className="flex flex-col gap-3 rounded-xl bg-card p-5 ring-1 ring-foreground/10">
@@ -341,8 +405,8 @@ function Info({ label, value }: { label: string; value: string }) {
 
 function accessoriesSummary(acc: AccessoriesShape): string {
   const parts: string[] = [];
-  if (acc.adaptor_ac) parts.push(`${ACCESSORY_LABEL.adaptor_ac} ×${acc.adaptor_ac}`);
-  if (acc.kabel_ac) parts.push(`${ACCESSORY_LABEL.kabel_ac} ×${acc.kabel_ac}`);
+  if (acc.adaptor_ac) parts.push(ACCESSORY_LABEL.adaptor_ac);
+  if (acc.kabel_ac) parts.push(ACCESSORY_LABEL.kabel_ac);
   if (acc.tas_dus) parts.push(ACCESSORY_LABEL.tas_dus);
   if (acc.stylus) parts.push(ACCESSORY_LABEL.stylus);
   if (acc.mouse) parts.push(ACCESSORY_LABEL.mouse);

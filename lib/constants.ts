@@ -100,8 +100,8 @@ export const PHYSICAL_CONDITION_TAGS = [
 ] as const;
 
 export type AccessoriesShape = {
-  adaptor_ac: number;
-  kabel_ac: number;
+  adaptor_ac: boolean;
+  kabel_ac: boolean;
   tas_dus: boolean;
   stylus: boolean;
   mouse: boolean;
@@ -110,8 +110,8 @@ export type AccessoriesShape = {
 };
 
 export const DEFAULT_ACCESSORIES: AccessoriesShape = {
-  adaptor_ac: 0,
-  kabel_ac: 0,
+  adaptor_ac: false,
+  kabel_ac: false,
   tas_dus: false,
   stylus: false,
   mouse: false,
