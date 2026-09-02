@@ -48,7 +48,10 @@ Supabase SQL Editor (urut nama file) atau `supabase db push`.
 - Tabel: `queues`, `service_tickets`, `service_ticket_logs`, `profiles`, `daily_counters`
 - RPC: `create_queue_ticket`, `next_ticket_number`, `pull_next_ticket` (FIFO, `FOR UPDATE SKIP LOCKED`), `public_track_ticket`
 - Timezone DB di-set `Asia/Jakarta`; `queue_date` default eksplisit WIB
-- Nomor antrean & tiket anti-race via `daily_counters` (`INSERT … ON CONFLICT … RETURNING`)
+- Nomor antrean anti-race via `daily_counters` (reset harian, format `A-01`/`B-01`/`C-01`)
+- Nomor tiket servis via sequence global `ticket_seq` (**tidak** reset harian) — format
+  `YYYYMMDD-XXXX`, mis. `20260902-0001`. Angka tetap lanjut walau tanggal berganti, supaya
+  tidak ada nomor yang ambigu antar hari.
 
 **Buat user staf:** Supabase → Authentication → Users → Add user (Auto Confirm).
 Trigger otomatis membuat baris `profiles` (`role = 'admin'`). Ubah role bila perlu:
@@ -76,10 +79,13 @@ update public.profiles set role = 'technician' where id = '<uuid>';
 /tracking                 Cek status servis (nomor tiket)
 /login                    Masuk staf
 /admin/queue              Papan panggil meja depan (realtime)
+/admin/board              Papan Kanban status semua tiket servis (realtime)
 /admin/intake/new         Form intake unit (foto, tanda tangan)
 /admin/pickup             Validasi & penyerahan unit
-/tech/workbench           Dashboard teknisi + Tarik Tiket FIFO
-/tech/workbench/[id]      Detail tiket + ubah status + riwayat
+/admin/tickets/[id]       Detail tiket — admin/owner bisa ubah status BEBAS + wajib catatan
+/admin/staff              Kelola staf (owner) + reset data uji coba
+/tech/workbench           Dashboard teknisi + Tarik Tiket FIFO (semua tiket aktif terlihat)
+/tech/workbench/[id]      Detail tiket — teknisi mengikuti alur status (tak bisa mundur)
 /api/cron/daily-report    Rekap harian (cron)
 ```
 
@@ -89,10 +95,21 @@ update public.profiles set role = 'technician' where id = '<uuid>';
 → QC_TESTING → READY_FOR_PICKUP → CLOSED` (atau `CANCELLED` dari beberapa titik).
 Transisi yang diizinkan didefinisikan di `lib/constants.ts` → `TICKET_STATUS_FLOW`.
 
-## Aturan biaya (`lib/pricing.ts`)
+Server action tunggal `lib/actions/tickets.ts` → `updateTicketStatus()` menegakkan ini
+berdasarkan role pemanggil:
+- **Teknisi**: hanya boleh mengikuti `TICKET_STATUS_FLOW` (alur maju/terdefinisi) — tidak
+  bisa memundurkan status semaunya. Semua teknisi bisa melihat & mengubah **semua** tiket
+  aktif (bukan cuma yang mereka tarik sendiri), supaya unit tidak macet kalau teknisi yang
+  menarik sedang libur.
+- **Admin / owner**: bebas pindah ke status apa pun (mis. mengoreksi kesalahan input), TAPI
+  wajib mengisi catatan alasan perubahan. Lewat `/admin/tickets/[id]` atau papan Kanban
+  `/admin/board`.
 
-- Biaya jasa dasar **Rp 150.000** — otomatis **ditiadakan** bila ada part/paket yang disetujui (pelanggan hanya bayar part).
-- Biaya cek / batal **Rp 75.000** — bila servis dibatalkan setelah diagnosa.
+Setiap perubahan status selalu tercatat di `service_ticket_logs` (siapa, dari status apa,
+ke status apa, catatan, waktu) — tidak bisa dipalsukan/dihapus dari UI.
+
+Aplikasi ini murni untuk **alur kerja (workflow)** — pelacakan biaya/pembayaran per unit
+tidak lagi ditampilkan di intake, workbench, maupun pengambilan.
 
 ## Catatan penyimpangan dari PRD
 
@@ -101,3 +118,7 @@ Transisi yang diizinkan didefinisikan di `lib/constants.ts` → `TICKET_STATUS_F
 - **Next.js 15** (bukan 14); **shadcn v4 / Base UI** (bukan Radix).
 - **Cron 22:00 WIB** = `0 15 * * *` UTC (PRD tulis `0 22` yang sebenarnya 05:00 WIB).
 - API route `/api/queue/next` & `/api/ticket/pull-fifo` tidak dibuat — diganti panggilan RPC + Server Actions.
+- **Biaya jasa dasar / biaya batal** di PRD §2C **tidak lagi ditegakkan di UI** — atas
+  permintaan pemilik, aplikasi difokuskan murni untuk pelacakan alur kerja servis, bukan
+  pembayaran. Kolom biaya masih ada di skema (`base_service_fee`, `cancel_fee`,
+  `estimated_cost`, `final_cost`) untuk kompatibilitas masa depan, tapi tidak diisi lagi.

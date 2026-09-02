@@ -6,10 +6,6 @@ export type WarrantyStatus = Database["public"]["Enums"]["warranty_status_enum"]
 export type TicketStatus = Database["public"]["Enums"]["service_ticket_status"];
 export type AppRole = Database["public"]["Enums"]["app_role"];
 
-// ── Biaya toko (PRD §2C) ──────────────────────────────────────────────
-export const BASE_SERVICE_FEE = 150_000;
-export const CANCEL_FEE = 75_000;
-
 // ── Peran staf ──────────────────────────────────────────────────────
 export const APP_ROLES: AppRole[] = ["admin", "technician", "owner"];
 

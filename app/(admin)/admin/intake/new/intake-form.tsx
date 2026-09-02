@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Loader2, Minus, Plus, CheckCircle2, Printer, Check } from "lucide-react";
+import { Loader2, Minus, Plus, CheckCircle2, Check } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -158,16 +158,13 @@ export function IntakeForm({
 
   if (done) {
     return (
-      <div className="mx-auto flex max-w-md flex-col items-center gap-3 rounded-xl bg-card p-8 text-center ring-1 ring-foreground/10 print:ring-0">
-        <CheckCircle2 className="size-10 text-emerald-600 print:hidden" />
+      <div className="mx-auto flex max-w-md flex-col items-center gap-3 rounded-xl bg-card p-8 text-center ring-1 ring-foreground/10">
+        <CheckCircle2 className="size-10 text-emerald-600" />
         <p className="text-sm text-muted-foreground">Nomor Tiket Servis</p>
         <p className="text-3xl font-bold tracking-tight">{done.ticket_number}</p>
         <p className="text-sm">{getValues("customer_name")}</p>
         <p className="text-sm text-muted-foreground">{getValues("product_description")}</p>
-        <div className="mt-3 flex gap-2 print:hidden">
-          <Button variant="outline" onClick={() => window.print()}>
-            <Printer className="size-4" /> Cetak
-          </Button>
+        <div className="mt-3 flex gap-2">
           <Button onClick={() => router.push("/admin/queue")}>Ke Papan Antrean</Button>
         </div>
       </div>

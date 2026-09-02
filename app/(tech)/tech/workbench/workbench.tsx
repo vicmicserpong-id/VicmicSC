@@ -11,8 +11,7 @@ import { TicketStatusBadge } from "@/components/shared/status-badge";
 import { createClient } from "@/lib/supabase/client";
 import { sinceShort } from "@/lib/format";
 import type { TicketStatus } from "@/lib/constants";
-
-import { pullNextTicket } from "./actions";
+import { pullNextTicket } from "@/lib/actions/tickets";
 
 type Row = {
   id: string;
@@ -21,45 +20,55 @@ type Row = {
   product_description: string;
   status: TicketStatus;
   complaint_description: string;
+  assigned_technician: string | null;
   created_at: string;
   updated_at: string;
 };
 
+type Profile = { id: string; full_name: string | null };
+
+const SELECT_COLUMNS =
+  "id, ticket_number, customer_name, product_description, status, complaint_description, assigned_technician, created_at, updated_at";
+
 export function Workbench({
   meId,
-  initialMine,
+  initialTickets,
   initialPool,
+  initialProfiles,
 }: {
   meId: string;
-  initialMine: Row[];
+  initialTickets: Row[];
   initialPool: number;
+  initialProfiles: Profile[];
 }) {
   const router = useRouter();
-  const [mine, setMine] = useState<Row[]>(initialMine);
+  const [tickets, setTickets] = useState<Row[]>(initialTickets);
   const [pool, setPool] = useState(initialPool);
+  const [profiles, setProfiles] = useState<Profile[]>(initialProfiles);
   const [pending, startTransition] = useTransition();
   const supabaseRef = useRef<ReturnType<typeof createClient> | null>(null);
   if (!supabaseRef.current) supabaseRef.current = createClient();
   const supabase = supabaseRef.current;
 
+  const nameById = new Map(profiles.map((p) => [p.id, p.full_name ?? "Staf"]));
+
   const refetch = useCallback(async () => {
-    const [{ data }, { count }] = await Promise.all([
+    const [{ data }, { count }, { data: profs }] = await Promise.all([
       supabase
         .from("service_tickets")
-        .select(
-          "id, ticket_number, customer_name, product_description, status, complaint_description, created_at, updated_at",
-        )
-        .eq("assigned_technician", meId)
+        .select(SELECT_COLUMNS)
         .not("status", "in", "(CLOSED,CANCELLED)")
         .order("updated_at", { ascending: true }),
       supabase
         .from("service_tickets")
         .select("id", { count: "exact", head: true })
         .eq("status", "INTAKE"),
+      supabase.from("profiles").select("id, full_name"),
     ]);
-    setMine((data as Row[]) ?? []);
+    setTickets((data as Row[]) ?? []);
     setPool(count ?? 0);
-  }, [supabase, meId]);
+    if (profs) setProfiles(profs);
+  }, [supabase]);
 
   useEffect(() => {
     const channel = supabase
@@ -100,7 +109,8 @@ export function Workbench({
         <div>
           <h1 className="text-lg font-semibold">Workbench</h1>
           <p className="text-sm text-muted-foreground">
-            {pool} unit menunggu diagnosa · {mine.length} tiket aktif Anda
+            {pool} unit menunggu diagnosa · {tickets.length} tiket aktif — semua teknisi bisa
+            melihat &amp; mengubah status
           </p>
         </div>
         <Button size="lg" onClick={pull} disabled={pending}>
@@ -117,36 +127,48 @@ export function Workbench({
       </div>
 
       <div className="flex flex-col gap-2">
-        {mine.length === 0 ? (
+        {tickets.length === 0 ? (
           <div className="flex flex-col items-center gap-2 rounded-xl bg-card p-10 text-center ring-1 ring-foreground/10">
             <Inbox className="size-8 text-muted-foreground" />
             <p className="text-sm text-muted-foreground">
-              Belum ada tiket. Tekan &quot;Tarik Tiket Berikutnya&quot; untuk mulai.
+              Belum ada tiket aktif. Tekan &quot;Tarik Tiket Berikutnya&quot; untuk mulai.
             </p>
           </div>
         ) : (
-          mine.map((row) => (
-            <Link
-              key={row.id}
-              href={`/tech/workbench/${row.id}`}
-              className="flex items-center gap-4 rounded-xl bg-card p-4 ring-1 ring-foreground/10 transition-colors hover:bg-muted/40"
-            >
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold">{row.ticket_number}</span>
-                  <TicketStatusBadge status={row.status} />
+          tickets.map((row) => {
+            const assignedName = row.assigned_technician
+              ? nameById.get(row.assigned_technician)
+              : null;
+            const isMine = row.assigned_technician === meId;
+            return (
+              <Link
+                key={row.id}
+                href={`/tech/workbench/${row.id}`}
+                className="flex items-center gap-4 rounded-xl bg-card p-4 ring-1 ring-foreground/10 transition-colors hover:bg-muted/40"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold">{row.ticket_number}</span>
+                    <TicketStatusBadge status={row.status} />
+                    {isMine && (
+                      <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                        Anda
+                      </span>
+                    )}
+                  </div>
+                  <p className="truncate text-sm">{row.product_description}</p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {row.customer_name} · {row.complaint_description}
+                  </p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {assignedName ? `${assignedName} · ` : ""}diperbarui{" "}
+                    {sinceShort(row.updated_at)} lalu
+                  </p>
                 </div>
-                <p className="truncate text-sm">{row.product_description}</p>
-                <p className="truncate text-xs text-muted-foreground">
-                  {row.customer_name} · {row.complaint_description}
-                </p>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  diperbarui {sinceShort(row.updated_at)} lalu
-                </p>
-              </div>
-              <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
-            </Link>
-          ))
+                <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+              </Link>
+            );
+          })
         )}
       </div>
     </div>

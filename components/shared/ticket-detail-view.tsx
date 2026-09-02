@@ -8,7 +8,6 @@ import { ArrowLeft, Loader2, MessageCircle, Check } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { TicketStatusBadge } from "@/components/shared/status-badge";
@@ -17,15 +16,12 @@ import {
   TICKET_STATUS_LABEL,
   WARRANTY_LABEL,
   ACCESSORY_LABEL,
-  BASE_SERVICE_FEE,
-  CANCEL_FEE,
   type AccessoriesShape,
   type TicketStatus,
 } from "@/lib/constants";
-import { formatRupiah, formatDateTimeWIB, waLink } from "@/lib/format";
+import { formatDateTimeWIB, waLink } from "@/lib/format";
 import type { Database } from "@/lib/database.types";
-
-import { updateTicketStatus } from "../actions";
+import { updateTicketStatus } from "@/lib/actions/tickets";
 
 type Ticket = Database["public"]["Tables"]["service_tickets"]["Row"];
 type Log = Pick<
@@ -33,64 +29,59 @@ type Log = Pick<
   "id" | "previous_status" | "new_status" | "notes" | "created_at"
 >;
 
-const HIDDEN_TARGETS: TicketStatus[] = ["CLOSED"]; // ditangani meja depan
+const ALL_STATUSES = Object.keys(TICKET_STATUS_LABEL) as TicketStatus[];
+const HIDDEN_TARGETS: TicketStatus[] = ["CLOSED"]; // ditangani meja depan (mode teknisi)
 
 function needs(target: TicketStatus) {
   return {
-    estimated: target === "WAITING_APPROVAL",
     partNotes: target === "WAITING_PART" || target === "PART_INSTALLING",
     qcNotes: target === "QC_TESTING" || target === "READY_FOR_PICKUP",
-    finalCost: target === "READY_FOR_PICKUP" || target === "CANCELLED",
   };
 }
 
-export function TicketDetail({ ticket, logs }: { ticket: Ticket; logs: Log[] }) {
+export function TicketDetailView({
+  ticket,
+  logs,
+  mode,
+  assignedName,
+  backHref,
+  backLabel,
+}: {
+  ticket: Ticket;
+  logs: Log[];
+  mode: "technician" | "admin";
+  assignedName: string | null;
+  backHref: string;
+  backLabel: string;
+}) {
   const router = useRouter();
   const [target, setTarget] = useState<TicketStatus | null>(null);
   const [notes, setNotes] = useState("");
-  const [estimated, setEstimated] = useState("");
   const [partNotes, setPartNotes] = useState(ticket.part_notes ?? "");
   const [qcNotes, setQcNotes] = useState(ticket.qc_notes ?? "");
-  const [finalCost, setFinalCost] = useState("");
   const [pending, startTransition] = useTransition();
 
   const acc = ticket.accessories as unknown as AccessoriesShape;
-  const nextOptions = (TICKET_STATUS_FLOW[ticket.status] ?? []).filter(
-    (s) => !HIDDEN_TARGETS.includes(s),
-  );
-  const diagnosed = logs.some((l) => l.new_status === "DIAGNOSING");
+  const nextOptions =
+    mode === "admin"
+      ? ALL_STATUSES.filter((s) => s !== ticket.status)
+      : (TICKET_STATUS_FLOW[ticket.status] ?? []).filter((s) => !HIDDEN_TARGETS.includes(s));
 
   function pick(t: TicketStatus) {
     setTarget(t);
     setNotes("");
-    setEstimated(ticket.estimated_cost > 0 ? String(ticket.estimated_cost) : "");
-    setFinalCost(
-      t === "CANCELLED"
-        ? String(diagnosed ? CANCEL_FEE : 0)
-        : String(
-            ticket.final_cost > 0
-              ? ticket.final_cost
-              : ticket.estimated_cost > 0
-                ? ticket.estimated_cost
-                : BASE_SERVICE_FEE,
-          ),
-    );
   }
 
   const req = target ? needs(target) : null;
 
   function submit() {
     if (!target || !req) return;
-    if (req.estimated && !Number(estimated)) {
-      toast.error("Isi estimasi biaya.");
+    if (mode === "admin" && !notes.trim()) {
+      toast.error("Wajib isi catatan alasan perubahan status.");
       return;
     }
     if (target === "WAITING_PART" && !partNotes.trim()) {
       toast.error("Isi catatan sparepart.");
-      return;
-    }
-    if (target === "CANCELLED" && !notes.trim()) {
-      toast.error("Isi alasan pembatalan.");
       return;
     }
 
@@ -101,8 +92,6 @@ export function TicketDetail({ ticket, logs }: { ticket: Ticket; logs: Log[] }) 
           from: ticket.status,
           to: target,
           notes,
-          estimated_cost: req.estimated ? Number(estimated) : undefined,
-          final_cost: req.finalCost ? Number(finalCost) : undefined,
           part_notes: req.partNotes ? partNotes : undefined,
           qc_notes: req.qcNotes ? qcNotes : undefined,
         });
@@ -118,10 +107,10 @@ export function TicketDetail({ ticket, logs }: { ticket: Ticket; logs: Log[] }) 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-5">
       <Link
-        href="/tech/workbench"
+        href={backHref}
         className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
       >
-        <ArrowLeft className="size-4" /> Workbench
+        <ArrowLeft className="size-4" /> {backLabel}
       </Link>
 
       <div className="flex items-start justify-between gap-3">
@@ -139,13 +128,20 @@ export function TicketDetail({ ticket, logs }: { ticket: Ticket; logs: Log[] }) 
               {ticket.customer_phone}
             </a>
           </p>
+          {assignedName && (
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Ditugaskan ke <span className="font-medium">{assignedName}</span>
+            </p>
+          )}
         </div>
         <TicketStatusBadge status={ticket.status} />
       </div>
 
       {/* Ubah status */}
       <section className="flex flex-col gap-3 rounded-xl bg-card p-5 ring-1 ring-foreground/10">
-        <h2 className="text-sm font-semibold">Ubah Status</h2>
+        <h2 className="text-sm font-semibold">
+          Ubah Status {mode === "admin" && <span className="font-normal text-muted-foreground">(bebas, admin)</span>}
+        </h2>
         {nextOptions.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             Tidak ada transisi lanjutan dari status ini.
@@ -167,18 +163,6 @@ export function TicketDetail({ ticket, logs }: { ticket: Ticket; logs: Log[] }) 
 
         {target && req && (
           <div className="mt-1 flex flex-col gap-3 border-t pt-3">
-            {req.estimated && (
-              <Field>
-                <FieldLabel htmlFor="est">Estimasi biaya tambahan (Rp)</FieldLabel>
-                <Input
-                  id="est"
-                  type="number"
-                  inputMode="numeric"
-                  value={estimated}
-                  onChange={(e) => setEstimated(e.target.value)}
-                />
-              </Field>
-            )}
             {req.partNotes && (
               <Field>
                 <FieldLabel htmlFor="pn">Catatan sparepart</FieldLabel>
@@ -203,23 +187,9 @@ export function TicketDetail({ ticket, logs }: { ticket: Ticket; logs: Log[] }) 
                 />
               </Field>
             )}
-            {req.finalCost && (
-              <Field>
-                <FieldLabel htmlFor="fc">
-                  {target === "CANCELLED" ? "Biaya cek / batal (Rp)" : "Total biaya final (Rp)"}
-                </FieldLabel>
-                <Input
-                  id="fc"
-                  type="number"
-                  inputMode="numeric"
-                  value={finalCost}
-                  onChange={(e) => setFinalCost(e.target.value)}
-                />
-              </Field>
-            )}
             <Field>
               <FieldLabel htmlFor="nt">
-                Catatan {target === "CANCELLED" ? "(alasan pembatalan)" : "(opsional)"}
+                Catatan {mode === "admin" ? "(wajib — alasan perubahan)" : "(opsional)"}
               </FieldLabel>
               <Textarea
                 id="nt"
@@ -244,7 +214,7 @@ export function TicketDetail({ ticket, logs }: { ticket: Ticket; logs: Log[] }) 
           <a
             href={waLink(
               ticket.customer_phone,
-              `Halo ${ticket.customer_name}, unit servis Anda (${ticket.ticket_number} - ${ticket.product_description}) sudah SELESAI dan siap diambil di Vicmic Service. Total biaya: ${formatRupiah(ticket.final_cost > 0 ? ticket.final_cost : BASE_SERVICE_FEE)}. Terima kasih.`,
+              `Halo ${ticket.customer_name}, unit servis Anda (${ticket.ticket_number} - ${ticket.product_description}) sudah SELESAI dan siap diambil di Vicmic Service. Terima kasih.`,
             )}
             target="_blank"
             rel="noreferrer"
@@ -262,7 +232,7 @@ export function TicketDetail({ ticket, logs }: { ticket: Ticket; logs: Log[] }) 
         <Info label="Serial Number" value={ticket.serial_number || "-"} />
         <Info label="Email" value={ticket.customer_email || "-"} />
         <Info label="Diterima" value={formatDateTimeWIB(ticket.created_at)} />
-        <Info label="Intake oleh" value={ticket.intake_by ? "Staf" : "-"} />
+        <Info label="Diperbarui" value={formatDateTimeWIB(ticket.updated_at)} />
       </section>
 
       {ticket.photos_url && ticket.photos_url.length > 0 && (
@@ -314,27 +284,16 @@ export function TicketDetail({ ticket, logs }: { ticket: Ticket; logs: Log[] }) 
           <p className="font-semibold">Kelengkapan</p>
           <p className="text-muted-foreground">{accessoriesSummary(acc)}</p>
         </div>
-      </section>
-
-      <section className="grid gap-3 rounded-xl bg-card p-5 text-sm ring-1 ring-foreground/10 sm:grid-cols-2">
-        <Info label="Biaya jasa dasar" value={formatRupiah(ticket.base_service_fee)} />
-        <Info label="Biaya batal" value={formatRupiah(ticket.cancel_fee)} />
-        <Info
-          label="Estimasi biaya"
-          value={ticket.estimated_cost > 0 ? formatRupiah(ticket.estimated_cost) : "-"}
-        />
-        <Info
-          label="Total final"
-          value={ticket.final_cost > 0 ? formatRupiah(ticket.final_cost) : "-"}
-        />
         {ticket.part_notes && (
-          <div className="sm:col-span-2">
-            <Info label="Catatan sparepart" value={ticket.part_notes} />
+          <div>
+            <p className="font-semibold">Catatan sparepart</p>
+            <p className="text-muted-foreground">{ticket.part_notes}</p>
           </div>
         )}
         {ticket.qc_notes && (
-          <div className="sm:col-span-2">
-            <Info label="Catatan QC" value={ticket.qc_notes} />
+          <div>
+            <p className="font-semibold">Catatan QC</p>
+            <p className="text-muted-foreground">{ticket.qc_notes}</p>
           </div>
         )}
       </section>

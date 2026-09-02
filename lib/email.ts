@@ -2,9 +2,6 @@ import "server-only";
 
 import { Resend } from "resend";
 
-import { formatRupiah } from "@/lib/format";
-import { BASE_SERVICE_FEE } from "@/lib/constants";
-
 const apiKey = process.env.RESEND_API_KEY;
 const FROM = process.env.RESEND_FROM || "Vicmic Service <onboarding@resend.dev>";
 
@@ -37,9 +34,7 @@ export function readyEmailHtml(t: {
   ticket_number: string;
   customer_name: string;
   product_description: string;
-  final_cost: number;
 }): string {
-  const total = t.final_cost > 0 ? t.final_cost : BASE_SERVICE_FEE;
   return `<div style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;max-width:480px;color:#0f172a">
   <h2 style="margin:0 0 12px">Unit Anda Siap Diambil ✅</h2>
   <p>Halo ${escapeHtml(t.customer_name)},</p>
@@ -47,7 +42,6 @@ export function readyEmailHtml(t: {
   <table style="border-collapse:collapse;margin:12px 0;font-size:14px">
     <tr><td style="padding:4px 12px 4px 0;color:#64748b">No. Tiket</td><td style="padding:4px 0"><strong>${escapeHtml(t.ticket_number)}</strong></td></tr>
     <tr><td style="padding:4px 12px 4px 0;color:#64748b">Unit</td><td style="padding:4px 0">${escapeHtml(t.product_description)}</td></tr>
-    <tr><td style="padding:4px 12px 4px 0;color:#64748b">Total biaya</td><td style="padding:4px 0"><strong>${formatRupiah(total)}</strong></td></tr>
   </table>
   <p style="color:#64748b;font-size:13px">Mohon tunjukkan email ini atau sebutkan nomor tiket saat pengambilan. Terima kasih.</p>
 </div>`;

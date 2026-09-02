@@ -3,8 +3,8 @@
 import { revalidatePath } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
-import { TICKET_STATUS_FLOW, type TicketStatus } from "@/lib/constants";
 import { sendEmail, readyEmailHtml } from "@/lib/email";
+import { TICKET_STATUS_FLOW, type AppRole, type TicketStatus } from "@/lib/constants";
 import type { Database } from "@/lib/database.types";
 
 type TicketUpdate = Database["public"]["Tables"]["service_tickets"]["Update"];
@@ -18,6 +18,14 @@ async function requireUser() {
   return { supabase, user };
 }
 
+async function myRole(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+): Promise<AppRole> {
+  const { data } = await supabase.from("profiles").select("role").eq("id", userId).single();
+  return (data?.role ?? "admin") as AppRole;
+}
+
 /** Tarik tiket INTAKE tertua ke teknisi (FIFO, atomik lewat RPC). */
 export async function pullNextTicket(): Promise<
   { id: string; ticket_number: string } | null
@@ -28,6 +36,7 @@ export async function pullNextTicket(): Promise<
   });
   if (error) throw new Error(error.message);
   revalidatePath("/tech/workbench");
+  revalidatePath("/admin/board");
   // PostgREST mengembalikan baris berisi null (bukan null) saat tak ada tiket.
   if (!data || !data.id) return null;
   return { id: data.id, ticket_number: data.ticket_number };
@@ -38,26 +47,38 @@ export type StatusChange = {
   from: TicketStatus;
   to: TicketStatus;
   notes?: string;
-  estimated_cost?: number;
-  final_cost?: number;
   part_notes?: string;
   qc_notes?: string;
 };
 
-/** Ubah status tiket + catat log. Memvalidasi transisi & mengunci status asal. */
+/**
+ * Ubah status tiket + catat log (siapa yang mengubah selalu tercatat).
+ * - Teknisi: hanya boleh mengikuti TICKET_STATUS_FLOW (alur maju/terdefinisi),
+ *   tidak bisa memundurkan status semaunya.
+ * - Admin / owner: bebas pindah ke status apa pun (koreksi), TAPI wajib
+ *   mengisi catatan alasan perubahan.
+ */
 export async function updateTicketStatus(input: StatusChange) {
   const { supabase, user } = await requireUser();
+  const role = await myRole(supabase, user.id);
+  const isFreeform = role === "admin" || role === "owner";
 
-  const allowed = TICKET_STATUS_FLOW[input.from] ?? [];
-  if (!allowed.includes(input.to)) {
-    throw new Error(`Transisi ${input.from} → ${input.to} tidak diizinkan.`);
+  if (input.to === input.from) {
+    throw new Error("Status tujuan sama dengan status saat ini.");
+  }
+
+  if (isFreeform) {
+    if (!input.notes?.trim()) {
+      throw new Error("Wajib isi catatan alasan perubahan status.");
+    }
+  } else {
+    const allowed = TICKET_STATUS_FLOW[input.from] ?? [];
+    if (!allowed.includes(input.to)) {
+      throw new Error(`Transisi ${input.from} → ${input.to} tidak diizinkan.`);
+    }
   }
 
   const patch: TicketUpdate = { status: input.to };
-  if (typeof input.estimated_cost === "number")
-    patch.estimated_cost = Math.max(0, Math.round(input.estimated_cost));
-  if (typeof input.final_cost === "number")
-    patch.final_cost = Math.max(0, Math.round(input.final_cost));
   if (input.part_notes !== undefined) patch.part_notes = input.part_notes.trim() || null;
   if (input.qc_notes !== undefined) patch.qc_notes = input.qc_notes.trim() || null;
 
@@ -83,7 +104,7 @@ export async function updateTicketStatus(input: StatusChange) {
   if (input.to === "READY_FOR_PICKUP") {
     const { data: t } = await supabase
       .from("service_tickets")
-      .select("ticket_number, customer_name, customer_email, product_description, final_cost")
+      .select("ticket_number, customer_name, customer_email, product_description")
       .eq("id", input.ticketId)
       .single();
     if (t?.customer_email) {
@@ -100,5 +121,7 @@ export async function updateTicketStatus(input: StatusChange) {
   }
 
   revalidatePath(`/tech/workbench/${input.ticketId}`);
+  revalidatePath(`/admin/tickets/${input.ticketId}`);
   revalidatePath("/tech/workbench");
+  revalidatePath("/admin/board");
 }

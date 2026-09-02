@@ -11,14 +11,12 @@ import { Input } from "@/components/ui/input";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { createClient } from "@/lib/supabase/client";
 import { type TicketStatus } from "@/lib/constants";
-import { formatRupiah, formatDateTimeWIB } from "@/lib/format";
+import { formatDateTimeWIB } from "@/lib/format";
 
 type TrackResult = {
   ticket_number: string;
   product_description: string;
   status: TicketStatus;
-  estimated_cost: number;
-  final_cost: number;
   created_at: string;
   updated_at: string;
 };
@@ -61,7 +59,7 @@ export default function TrackingPage() {
           <FieldLabel htmlFor="ticket">Nomor Tiket</FieldLabel>
           <Input
             id="ticket"
-            placeholder="VMC-20260902-001"
+            placeholder="20260902-0001"
             autoCapitalize="characters"
             autoComplete="off"
             value={value}
@@ -105,18 +103,6 @@ export default function TrackingPage() {
               <dt className="text-muted-foreground">Unit</dt>
               <dd className="text-right font-medium">{result.product_description}</dd>
             </div>
-            <div className="flex justify-between gap-4">
-              <dt className="text-muted-foreground">Estimasi biaya</dt>
-              <dd className="font-medium">
-                {result.estimated_cost > 0 ? formatRupiah(result.estimated_cost) : "-"}
-              </dd>
-            </div>
-            {result.final_cost > 0 ? (
-              <div className="flex justify-between gap-4">
-                <dt className="text-muted-foreground">Total biaya</dt>
-                <dd className="font-semibold">{formatRupiah(result.final_cost)}</dd>
-              </div>
-            ) : null}
             <div className="flex justify-between gap-4">
               <dt className="text-muted-foreground">Diperbarui</dt>
               <dd className="font-medium">{formatDateTimeWIB(result.updated_at)}</dd>

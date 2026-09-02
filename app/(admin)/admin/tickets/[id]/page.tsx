@@ -6,7 +6,7 @@ import { TicketDetailView } from "@/components/shared/ticket-detail-view";
 export const metadata = { title: "Detail Tiket" };
 export const dynamic = "force-dynamic";
 
-export default async function TechTicketPage({
+export default async function AdminTicketPage({
   params,
 }: {
   params: Promise<{ id: string }>;
@@ -40,10 +40,10 @@ export default async function TechTicketPage({
     <TicketDetailView
       ticket={ticket}
       logs={logs ?? []}
-      mode="technician"
+      mode="admin"
       assignedName={tech?.full_name ?? null}
-      backHref="/tech/workbench"
-      backLabel="Workbench"
+      backHref="/admin/board"
+      backLabel="Papan Status"
     />
   );
 }

@@ -10,8 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { TicketStatusBadge } from "@/components/shared/status-badge";
 import { createClient } from "@/lib/supabase/client";
-import { BASE_SERVICE_FEE, CANCEL_FEE, TICKET_STATUS_LABEL } from "@/lib/constants";
-import { formatRupiah } from "@/lib/format";
+import { TICKET_STATUS_LABEL } from "@/lib/constants";
 import type { Database } from "@/lib/database.types";
 
 import { closeTicket } from "./actions";
@@ -43,24 +42,15 @@ export function PickupPanel({ initialCode }: { initialCode: string }) {
     setLoading(false);
   }
 
-  const amount =
-    ticket?.status === "CANCELLED"
-      ? ticket.final_cost > 0
-        ? ticket.final_cost
-        : CANCEL_FEE
-      : ticket && ticket.final_cost > 0
-        ? ticket.final_cost
-        : BASE_SERVICE_FEE;
-
   const canSettle = ticket?.status === "READY_FOR_PICKUP";
 
   function settle() {
     if (!ticket) return;
     startTransition(async () => {
       try {
-        await closeTicket(ticket.id, amount);
+        await closeTicket(ticket.id);
         setSettled(true);
-        toast.success("Unit diserahkan & pelunasan tercatat.");
+        toast.success("Unit diserahkan.");
       } catch (err) {
         toast.error((err as Error).message);
       }
@@ -76,7 +66,7 @@ export function PickupPanel({ initialCode }: { initialCode: string }) {
           <FieldLabel htmlFor="code">No. Tiket Servis</FieldLabel>
           <Input
             id="code"
-            placeholder="VMC-20260902-001"
+            placeholder="20260902-0001"
             autoCapitalize="characters"
             value={code}
             onChange={(e) => setCode(e.target.value)}
@@ -99,9 +89,6 @@ export function PickupPanel({ initialCode }: { initialCode: string }) {
         <div className="flex flex-col items-center gap-2 rounded-xl bg-card p-8 text-center ring-1 ring-foreground/10">
           <CheckCircle2 className="size-10 text-emerald-600" />
           <p className="font-medium">Unit {ticket.ticket_number} diserahkan</p>
-          <p className="text-sm text-muted-foreground">
-            Pelunasan {formatRupiah(amount)} tercatat.
-          </p>
         </div>
       )}
 
@@ -129,29 +116,13 @@ export function PickupPanel({ initialCode }: { initialCode: string }) {
             </div>
           )}
 
-          {!canSettle && ticket.status !== "CANCELLED" && (
+          {!canSettle && (
             <div className="flex items-center gap-2 rounded-lg bg-amber-50 p-3 text-sm text-amber-800 ring-1 ring-amber-200">
               <AlertTriangle className="size-4 shrink-0" />
               Unit belum siap diambil — status saat ini:{" "}
               <strong>{TICKET_STATUS_LABEL[ticket.status]}</strong>.
             </div>
           )}
-
-          <div className="rounded-lg bg-muted/50 p-4">
-            <p className="mb-2 text-xs font-medium uppercase text-muted-foreground">
-              Rincian pembayaran
-            </p>
-            <div className="flex items-center justify-between text-sm">
-              <span>
-                {ticket.status === "CANCELLED"
-                  ? "Biaya cek / batal servis"
-                  : ticket.final_cost > 0
-                    ? "Total biaya servis"
-                    : "Biaya jasa dasar"}
-              </span>
-              <span className="font-semibold">{formatRupiah(amount)}</span>
-            </div>
-          </div>
 
           <Button size="lg" onClick={settle} disabled={!canSettle || pending}>
             {pending ? (
@@ -160,7 +131,7 @@ export function PickupPanel({ initialCode }: { initialCode: string }) {
               </>
             ) : (
               <>
-                <PackageCheck /> Serahkan &amp; Lunas
+                <PackageCheck /> Serahkan Unit
               </>
             )}
           </Button>

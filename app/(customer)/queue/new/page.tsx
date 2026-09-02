@@ -188,7 +188,7 @@ export default function NewQueuePage() {
               <FieldLabel htmlFor="service_code">No. Tiket / Nota Servis</FieldLabel>
               <Input
                 id="service_code"
-                placeholder="Contoh: VMC-20260902-001"
+                placeholder="Contoh: 20260902-0001"
                 autoCapitalize="characters"
                 aria-invalid={!!errors.service_code}
                 {...register("service_code")}

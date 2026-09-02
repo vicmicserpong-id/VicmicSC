@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { todayWIB } from "@/lib/format";
 
-export async function closeTicket(ticketId: string, finalCost: number) {
+export async function closeTicket(ticketId: string) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -24,7 +24,7 @@ export async function closeTicket(ticketId: string, finalCost: number) {
 
   const { error } = await supabase
     .from("service_tickets")
-    .update({ status: "CLOSED", final_cost: Math.max(0, Math.round(finalCost)) })
+    .update({ status: "CLOSED" })
     .eq("id", ticketId);
   if (error) throw new Error(error.message);
 
@@ -33,7 +33,7 @@ export async function closeTicket(ticketId: string, finalCost: number) {
     previous_status: "READY_FOR_PICKUP",
     new_status: "CLOSED",
     changed_by: user.id,
-    notes: `Unit diserahkan ke pelanggan. Pelunasan Rp ${Math.round(finalCost).toLocaleString("id-ID")}`,
+    notes: "Unit diserahkan ke pelanggan.",
   });
 
   // Tutup antrean pengambilan terkait bila ada
@@ -45,4 +45,5 @@ export async function closeTicket(ticketId: string, finalCost: number) {
     .in("status", ["waiting", "serving"]);
 
   revalidatePath("/admin/queue");
+  revalidatePath("/admin/board");
 }

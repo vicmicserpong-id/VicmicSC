@@ -8,6 +8,7 @@ import { ROLE_LABEL, type AppRole } from "@/lib/constants";
 const NAV: Record<"admin" | "tech", { href: string; label: string; ownerOnly?: boolean }[]> = {
   admin: [
     { href: "/admin/queue", label: "Antrean" },
+    { href: "/admin/board", label: "Papan" },
     { href: "/admin/intake/new", label: "Intake" },
     { href: "/admin/pickup", label: "Pengambilan" },
     { href: "/admin/staff", label: "Staf", ownerOnly: true },
