@@ -30,6 +30,20 @@ export function formatDateWIB(iso: string | Date | null | undefined): string {
   }).format(d);
 }
 
+/** Tanggal hari ini (YYYY-MM-DD) menurut zona WIB. */
+export function todayWIB(): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta" }).format(new Date());
+}
+
+/** Selisih waktu singkat dari `iso` sampai sekarang, mis. "12 mnt". */
+export function sinceShort(iso: string): string {
+  const mins = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 60000));
+  if (mins < 1) return "baru saja";
+  if (mins < 60) return `${mins} mnt`;
+  const h = Math.floor(mins / 60);
+  return `${h} jam ${mins % 60} mnt`;
+}
+
 /** Normalisasi nomor telepon Indonesia ke format wa.me (62xxxxxxxxxx). */
 export function toWaNumber(phone: string): string {
   let p = (phone ?? "").replace(/[^0-9]/g, "");
