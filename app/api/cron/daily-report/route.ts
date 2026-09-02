@@ -69,13 +69,22 @@ export async function GET(request: Request) {
   };
 
   const to = process.env.RECAP_EMAIL_RECIPIENT;
-  const email = to
-    ? await sendEmail({
+  let email: { skipped: boolean; id?: string; error?: string; reason?: string };
+  if (!to) {
+    email = { skipped: true, reason: "RECAP_EMAIL_RECIPIENT belum diset" };
+  } else {
+    try {
+      email = await sendEmail({
         to,
         subject: `Rekap Harian Vicmic — ${day}`,
         html: recapEmailHtml(data),
-      })
-    : { skipped: true, reason: "RECAP_EMAIL_RECIPIENT belum diset" };
+      });
+    } catch (e) {
+      // Kegagalan email tidak menggagalkan cron.
+      console.error("[cron daily-report] email gagal:", e);
+      email = { skipped: true, error: (e as Error).message };
+    }
+  }
 
   return NextResponse.json({ ok: true, data, email });
 }
