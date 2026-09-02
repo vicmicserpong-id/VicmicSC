@@ -35,6 +35,17 @@ export function todayWIB(): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta" }).format(new Date());
 }
 
+/** Batas awal/akhir "hari ini" (WIB) dalam ISO UTC — untuk query created_at/updated_at. */
+export function todayBoundsWIB(): { day: string; start: string; end: string } {
+  const day = todayWIB();
+  const startUtc = new Date(`${day}T00:00:00+07:00`);
+  return {
+    day,
+    start: startUtc.toISOString(),
+    end: new Date(startUtc.getTime() + 86_400_000).toISOString(),
+  };
+}
+
 /** Selisih waktu singkat dari `iso` sampai sekarang, mis. "12 mnt". */
 export function sinceShort(iso: string): string {
   const mins = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 60000));

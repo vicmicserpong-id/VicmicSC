@@ -2,9 +2,11 @@ import { redirect } from "next/navigation";
 
 import { getStaff } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { todayBoundsWIB } from "@/lib/format";
 import type { AppRole } from "@/lib/constants";
 
 import { StaffManager, type StaffRow } from "./staff-manager";
+import { DangerZone } from "./danger-zone";
 
 export const metadata = { title: "Kelola Staf" };
 export const dynamic = "force-dynamic";
@@ -14,10 +16,19 @@ export default async function StaffPage() {
   if (me.role !== "owner") redirect("/admin/queue");
 
   const admin = createAdminClient();
-  const [{ data: list }, { data: profiles }] = await Promise.all([
-    admin.auth.admin.listUsers({ perPage: 200 }),
-    admin.from("profiles").select("id, full_name, role, created_at"),
-  ]);
+  const { day, start, end } = todayBoundsWIB();
+
+  const [{ data: list }, { data: profiles }, { count: queueCount }, { count: ticketCount }] =
+    await Promise.all([
+      admin.auth.admin.listUsers({ perPage: 200 }),
+      admin.from("profiles").select("id, full_name, role, created_at"),
+      admin.from("queues").select("id", { count: "exact", head: true }).eq("queue_date", day),
+      admin
+        .from("service_tickets")
+        .select("id", { count: "exact", head: true })
+        .gte("created_at", start)
+        .lt("created_at", end),
+    ]);
 
   const byId = new Map((profiles ?? []).map((p) => [p.id, p]));
   const staff: StaffRow[] = (list?.users ?? [])
@@ -33,5 +44,10 @@ export default async function StaffPage() {
     })
     .sort((a, b) => a.full_name.localeCompare(b.full_name));
 
-  return <StaffManager meId={me.id} initial={staff} />;
+  return (
+    <div className="flex flex-col gap-8">
+      <StaffManager meId={me.id} initial={staff} />
+      <DangerZone queues={queueCount ?? 0} tickets={ticketCount ?? 0} />
+    </div>
+  );
 }
