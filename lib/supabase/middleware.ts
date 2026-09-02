@@ -70,6 +70,11 @@ export async function updateSession(request: NextRequest) {
       url.pathname = "/tech/workbench";
       return NextResponse.redirect(url);
     }
+    if (path.startsWith("/admin/staff") && role !== "owner") {
+      const url = request.nextUrl.clone();
+      url.pathname = "/admin/queue";
+      return NextResponse.redirect(url);
+    }
     if (inTech && !TECH_ROLES.has(role)) {
       const url = request.nextUrl.clone();
       url.pathname = "/admin/queue";

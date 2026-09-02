@@ -10,6 +10,15 @@ export type AppRole = Database["public"]["Enums"]["app_role"];
 export const BASE_SERVICE_FEE = 150_000;
 export const CANCEL_FEE = 75_000;
 
+// ── Peran staf ──────────────────────────────────────────────────────
+export const APP_ROLES: AppRole[] = ["admin", "technician", "owner"];
+
+export const ROLE_LABEL: Record<AppRole, string> = {
+  admin: "Admin Meja Depan",
+  technician: "Teknisi",
+  owner: "Owner",
+};
+
 // ── Antrean ──────────────────────────────────────────────────────────
 export const SERVICE_TYPE_LABEL: Record<ServiceType, string> = {
   service_baru: "Servis Baru",

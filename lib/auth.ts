@@ -34,3 +34,12 @@ export async function getStaff(): Promise<Staff> {
     role: (profile?.role ?? "admin") as AppRole,
   };
 }
+
+/** Seperti getStaff() tapi melempar bila bukan owner. Untuk aksi manajemen staf. */
+export async function requireOwner(): Promise<Staff> {
+  const staff = await getStaff();
+  if (staff.role !== "owner") {
+    throw new Error("Hanya owner yang boleh melakukan aksi ini.");
+  }
+  return staff;
+}

@@ -3,21 +3,16 @@ import { LogOut } from "lucide-react";
 
 import { StaffNav } from "@/components/shared/staff-nav";
 import { Button } from "@/components/ui/button";
-import { type AppRole } from "@/lib/constants";
+import { ROLE_LABEL, type AppRole } from "@/lib/constants";
 
-const NAV: Record<"admin" | "tech", { href: string; label: string }[]> = {
+const NAV: Record<"admin" | "tech", { href: string; label: string; ownerOnly?: boolean }[]> = {
   admin: [
     { href: "/admin/queue", label: "Antrean" },
     { href: "/admin/intake/new", label: "Intake" },
     { href: "/admin/pickup", label: "Pengambilan" },
+    { href: "/admin/staff", label: "Staf", ownerOnly: true },
   ],
   tech: [{ href: "/tech/workbench", label: "Workbench" }],
-};
-
-const ROLE_LABEL: Record<AppRole, string> = {
-  admin: "Admin Meja Depan",
-  technician: "Teknisi",
-  owner: "Owner",
 };
 
 export function StaffShell({
@@ -42,7 +37,9 @@ export function StaffShell({
             <span className="text-sm font-semibold tracking-tight">Vicmic</span>
           </Link>
 
-          <StaffNav items={NAV[area]} />
+          <StaffNav
+            items={NAV[area].filter((i) => !i.ownerOnly || role === "owner")}
+          />
 
           <div className="ml-auto flex items-center gap-3">
             <div className="text-right leading-tight">
