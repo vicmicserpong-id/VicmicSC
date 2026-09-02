@@ -1,0 +1,64 @@
+import Link from "next/link";
+import { LogOut } from "lucide-react";
+
+import { StaffNav } from "@/components/shared/staff-nav";
+import { Button } from "@/components/ui/button";
+import { type AppRole } from "@/lib/constants";
+
+const NAV: Record<"admin" | "tech", { href: string; label: string }[]> = {
+  admin: [
+    { href: "/admin/queue", label: "Antrean" },
+    { href: "/admin/intake/new", label: "Intake" },
+    { href: "/admin/pickup", label: "Pengambilan" },
+  ],
+  tech: [{ href: "/tech/workbench", label: "Workbench" }],
+};
+
+const ROLE_LABEL: Record<AppRole, string> = {
+  admin: "Admin Meja Depan",
+  technician: "Teknisi",
+  owner: "Owner",
+};
+
+export function StaffShell({
+  area,
+  name,
+  role,
+  children,
+}: {
+  area: "admin" | "tech";
+  name: string;
+  role: AppRole;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex min-h-full flex-col bg-muted/30">
+      <header className="border-b bg-background">
+        <div className="mx-auto flex h-14 w-full max-w-5xl items-center gap-4 px-4">
+          <Link href={NAV[area][0].href} className="flex items-center gap-2">
+            <span className="grid size-7 place-items-center rounded-md bg-[#0f172a] text-xs font-bold text-white">
+              V
+            </span>
+            <span className="text-sm font-semibold tracking-tight">Vicmic</span>
+          </Link>
+
+          <StaffNav items={NAV[area]} />
+
+          <div className="ml-auto flex items-center gap-3">
+            <div className="text-right leading-tight">
+              <p className="text-sm font-medium">{name}</p>
+              <p className="text-xs text-muted-foreground">{ROLE_LABEL[role]}</p>
+            </div>
+            <form action="/auth/signout" method="post">
+              <Button type="submit" variant="outline" size="sm">
+                <LogOut className="size-3.5" /> Keluar
+              </Button>
+            </form>
+          </div>
+        </div>
+      </header>
+
+      <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-6">{children}</main>
+    </div>
+  );
+}
