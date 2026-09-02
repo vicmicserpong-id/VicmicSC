@@ -251,7 +251,15 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      service_ticket_last_change: {
+        Row: {
+          ticket_id: string | null
+          changed_by: string | null
+          new_status: Database["public"]["Enums"]["service_ticket_status"] | null
+          changed_at: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       create_queue_ticket: {

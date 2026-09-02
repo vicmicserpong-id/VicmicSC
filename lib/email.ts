@@ -18,6 +18,8 @@ export async function sendEmail(opts: {
   to: string | string[];
   subject: string;
   html: string;
+  /** Lampiran, mis. rekap CSV. `content` boleh string (base64) atau Buffer. */
+  attachments?: { filename: string; content: string | Buffer }[];
 }): Promise<{ skipped: boolean; id?: string }> {
   if (!apiKey) {
     console.warn("[email] RESEND_API_KEY belum diset — dilewati:", opts.subject);
@@ -27,6 +29,11 @@ export async function sendEmail(opts: {
   const { data, error } = await resend.emails.send({ from: FROM, ...opts });
   if (error) throw new Error(error.message);
   return { skipped: false, id: data?.id };
+}
+
+/** Encode teks (mis. CSV) ke base64 untuk lampiran email. */
+export function toBase64Attachment(content: string): string {
+  return Buffer.from(content, "utf-8").toString("base64");
 }
 
 // ── Template: unit siap diambil ─────────────────────────────────────
@@ -89,5 +96,45 @@ export function recapEmailHtml(d: RecapData): string {
   <table style="border-collapse:collapse;font-size:14px;width:100%">
     ${techRows}
   </table>
+</div>`;
+}
+
+// ── Template: rekap bulanan (dengan lampiran CSV) ────────────────────
+export type MonthlyRecapData = {
+  monthLabel: string;
+  newCount: number;
+  closedCount: number;
+  cancelledCount: number;
+  avgTurnaroundDays: number | null;
+  warrantyBreakdown: { label: string; count: number }[];
+};
+
+export function monthlyRecapEmailHtml(d: MonthlyRecapData): string {
+  const row = (a: string, b: string | number) =>
+    `<tr><td style="padding:6px 16px 6px 0;color:#64748b">${a}</td><td style="padding:6px 0;text-align:right"><strong>${b}</strong></td></tr>`;
+  const warrantyRows = d.warrantyBreakdown.map((w) => row(w.label, w.count)).join("");
+
+  return `<div style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;max-width:520px;color:#0f172a">
+  <h2 style="margin:0 0 4px">Rekap Bulanan Vicmic Service</h2>
+  <p style="margin:0 0 16px;color:#64748b">${escapeHtml(d.monthLabel)}</p>
+
+  <table style="border-collapse:collapse;font-size:14px;width:100%">
+    ${row("Unit masuk", d.newCount)}
+    ${row("Unit selesai (sudah diambil)", d.closedCount)}
+    ${row("Dibatalkan", d.cancelledCount)}
+    ${row(
+      "Rata-rata waktu pengerjaan",
+      d.avgTurnaroundDays === null ? "—" : `${d.avgTurnaroundDays.toFixed(1)} hari`,
+    )}
+  </table>
+
+  <h3 style="margin:16px 0 4px;font-size:14px">Unit Masuk per Status Garansi</h3>
+  <table style="border-collapse:collapse;font-size:14px;width:100%">
+    ${warrantyRows}
+  </table>
+
+  <p style="margin:16px 0 0;color:#64748b;font-size:13px">
+    Daftar lengkap unit yang sudah diambil bulan ini terlampir sebagai CSV (bisa dibuka di Excel).
+  </p>
 </div>`;
 }

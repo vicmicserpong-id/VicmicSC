@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { sendEmail, readyEmailHtml } from "@/lib/email";
 import { TICKET_STATUS_FLOW, type AppRole, type TicketStatus } from "@/lib/constants";
+import { todayWIB } from "@/lib/format";
 import type { Database } from "@/lib/database.types";
 
 type TicketUpdate = Database["public"]["Tables"]["service_tickets"]["Update"];
@@ -54,22 +55,30 @@ export type StatusChange = {
 /**
  * Ubah status tiket + catat log (siapa yang mengubah selalu tercatat).
  * - Teknisi: hanya boleh mengikuti TICKET_STATUS_FLOW (alur maju/terdefinisi),
- *   tidak bisa memundurkan status semaunya.
- * - Admin / owner: bebas pindah ke status apa pun (koreksi), TAPI wajib
- *   mengisi catatan alasan perubahan.
+ *   tidak bisa memundurkan status semaunya, dan tidak bisa menarik tiket INTAKE
+ *   di luar FIFO.
+ * - Admin: HANYA boleh mengubah READY_FOR_PICKUP → CLOSED (menyerahkan unit ke
+ *   pelanggan) — tidak boleh mengubah status bolak-balik di titik lain.
+ * - Owner: bebas pindah ke status apa pun (koreksi), TAPI wajib mengisi catatan
+ *   alasan perubahan.
  */
 export async function updateTicketStatus(input: StatusChange) {
   const { supabase, user } = await requireUser();
   const role = await myRole(supabase, user.id);
-  const isFreeform = role === "admin" || role === "owner";
 
   if (input.to === input.from) {
     throw new Error("Status tujuan sama dengan status saat ini.");
   }
 
-  if (isFreeform) {
+  if (role === "owner") {
     if (!input.notes?.trim()) {
       throw new Error("Wajib isi catatan alasan perubahan status.");
+    }
+  } else if (role === "admin") {
+    if (input.from !== "READY_FOR_PICKUP" || input.to !== "CLOSED") {
+      throw new Error(
+        'Admin hanya bisa mengubah status "Siap Diambil" menjadi "Selesai/Diambil". Untuk koreksi status lain, hubungi owner.',
+      );
     }
   } else {
     if (input.from === "INTAKE") {
@@ -102,8 +111,26 @@ export async function updateTicketStatus(input: StatusChange) {
     previous_status: input.from,
     new_status: input.to,
     changed_by: user.id,
-    notes: input.notes?.trim() || null,
+    notes: input.notes?.trim() || (input.to === "CLOSED" ? "Unit diserahkan ke pelanggan." : null),
   });
+
+  // Tutup antrean pengambilan terkait bila ada (samakan dgn alur /admin/pickup).
+  if (input.to === "CLOSED") {
+    const { data: t } = await supabase
+      .from("service_tickets")
+      .select("ticket_number")
+      .eq("id", input.ticketId)
+      .single();
+    if (t) {
+      await supabase
+        .from("queues")
+        .update({ status: "completed", completed_at: new Date().toISOString() })
+        .eq("service_code", t.ticket_number)
+        .eq("queue_date", todayWIB())
+        .in("status", ["waiting", "serving"]);
+    }
+    revalidatePath("/admin/queue");
+  }
 
   // Notifikasi "siap diambil" ke pelanggan (best-effort — tidak menggagalkan aksi).
   if (input.to === "READY_FOR_PICKUP") {

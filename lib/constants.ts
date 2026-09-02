@@ -52,9 +52,9 @@ export const TICKET_STATUS_LABEL: Record<TicketStatus, string> = {
 /**
  * Transisi status yang diizinkan untuk TEKNISI — murni MAJU, tidak ada
  * jalur mundur/lateral (mis. QC_TESTING tidak boleh balik ke IN_REPAIR).
- * Koreksi/pembalikan status hanya lewat override admin (lihat
- * lib/actions/tickets.ts -> updateTicketStatus, role admin/owner bebas
- * pindah ke status apa pun asal disertai catatan).
+ * Koreksi/pembalikan status hanya lewat override OWNER (lihat
+ * lib/actions/tickets.ts -> updateTicketStatus). Role admin lebih sempit
+ * lagi dari peta ini: cuma boleh READY_FOR_PICKUP -> CLOSED.
  */
 export const TICKET_STATUS_FLOW: Record<TicketStatus, TicketStatus[]> = {
   INTAKE: ["DIAGNOSING", "CANCELLED"],

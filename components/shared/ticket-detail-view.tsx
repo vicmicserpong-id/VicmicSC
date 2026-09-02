@@ -25,6 +25,7 @@ import {
   WARRANTY_LABEL,
   ACCESSORY_LABEL,
   type AccessoriesShape,
+  type AppRole,
   type TicketStatus,
 } from "@/lib/constants";
 import { formatDateTimeWIB, waLink } from "@/lib/format";
@@ -55,6 +56,7 @@ export function TicketDetailView({
   logs,
   profiles,
   mode,
+  role,
   assignedName,
   backHref,
   backLabel,
@@ -63,6 +65,7 @@ export function TicketDetailView({
   logs: Log[];
   profiles: Profile[];
   mode: "technician" | "admin";
+  role: AppRole;
   assignedName: string | null;
   backHref: string;
   backLabel: string;
@@ -78,10 +81,17 @@ export function TicketDetailView({
   const [deleting, startDelete] = useTransition();
 
   const acc = ticket.accessories as unknown as AccessoriesShape;
+  // Owner: bebas pindah ke status apa pun. Admin: cuma boleh menyerahkan unit
+  // (Siap Diambil → Selesai) — tidak ada opsi lain. Teknisi: alur maju TICKET_STATUS_FLOW.
   const nextOptions =
-    mode === "admin"
+    role === "owner"
       ? ALL_STATUSES.filter((s) => s !== ticket.status)
-      : (TICKET_STATUS_FLOW[ticket.status] ?? []).filter((s) => !HIDDEN_TARGETS.includes(s));
+      : role === "admin"
+        ? ticket.status === "READY_FOR_PICKUP"
+          ? (["CLOSED"] as TicketStatus[])
+          : []
+        : (TICKET_STATUS_FLOW[ticket.status] ?? []).filter((s) => !HIDDEN_TARGETS.includes(s));
+  const notesRequired = role === "owner";
 
   function pick(t: TicketStatus) {
     setTarget(t);
@@ -105,7 +115,7 @@ export function TicketDetailView({
 
   function submit() {
     if (!target || !req) return;
-    if (mode === "admin" && !notes.trim()) {
+    if (notesRequired && !notes.trim()) {
       toast.error("Wajib isi catatan alasan perubahan status.");
       return;
     }
@@ -209,11 +219,19 @@ export function TicketDetailView({
       {/* Ubah status */}
       <section className="flex flex-col gap-3 rounded-xl bg-card p-5 ring-1 ring-foreground/10">
         <h2 className="text-sm font-semibold">
-          Ubah Status {mode === "admin" && <span className="font-normal text-muted-foreground">(bebas, admin)</span>}
+          Ubah Status{" "}
+          {role === "owner" && (
+            <span className="font-normal text-muted-foreground">(bebas, owner)</span>
+          )}
+          {role === "admin" && (
+            <span className="font-normal text-muted-foreground">(hanya serah-terima unit)</span>
+          )}
         </h2>
         {nextOptions.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            Tidak ada transisi lanjutan dari status ini.
+            {role === "admin"
+              ? "Belum bisa diserahkan — status unit belum \"Siap Diambil\". Untuk koreksi status, hubungi owner."
+              : "Tidak ada transisi lanjutan dari status ini."}
           </p>
         ) : (
           <div className="flex flex-wrap gap-2">
@@ -258,7 +276,7 @@ export function TicketDetailView({
             )}
             <Field>
               <FieldLabel htmlFor="nt">
-                Catatan {mode === "admin" ? "(wajib — alasan perubahan)" : "(opsional)"}
+                Catatan {notesRequired ? "(wajib — alasan perubahan)" : "(opsional)"}
               </FieldLabel>
               <Textarea
                 id="nt"

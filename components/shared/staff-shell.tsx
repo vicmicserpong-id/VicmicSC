@@ -12,6 +12,7 @@ const NAV: Record<"admin" | "tech", { href: string; label: string; ownerOnly?: b
     { href: "/admin/tickets", label: "Daftar Servis" },
     { href: "/admin/intake/new", label: "Servis Baru" },
     { href: "/admin/pickup", label: "Pengambilan" },
+    { href: "/admin/reports", label: "Laporan" },
     { href: "/admin/staff", label: "Staf", ownerOnly: true },
   ],
   tech: [{ href: "/tech/workbench", label: "Workbench" }],

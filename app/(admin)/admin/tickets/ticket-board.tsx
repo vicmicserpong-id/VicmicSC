@@ -1,14 +1,18 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { Search, X } from "lucide-react";
+import { Search, X, Download, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { TICKET_STATUS_LABEL, type TicketStatus } from "@/lib/constants";
-import { sinceShort } from "@/lib/format";
+import { sinceShort, todayWIB } from "@/lib/format";
+import { downloadTextFile } from "@/lib/download";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
+import { exportTicketsCsvAction } from "@/lib/actions/reports";
 
 const BOARD_COLUMNS: TicketStatus[] = [
   "INTAKE",
@@ -47,6 +51,7 @@ type Row = {
 };
 
 type Profile = { id: string; full_name: string | null };
+type LastChange = { ticket_id: string | null; changed_by: string | null };
 
 const SELECT_COLUMNS =
   "id, ticket_number, customer_name, product_description, status, assigned_technician, updated_at";
@@ -54,30 +59,41 @@ const SELECT_COLUMNS =
 export function TicketBoard({
   initialTickets,
   initialProfiles,
+  initialLastChange,
 }: {
   initialTickets: Row[];
   initialProfiles: Profile[];
+  initialLastChange: LastChange[];
 }) {
   const [tickets, setTickets] = useState<Row[]>(initialTickets);
   const [profiles, setProfiles] = useState<Profile[]>(initialProfiles);
+  const [lastChange, setLastChange] = useState<LastChange[]>(initialLastChange);
   const [query, setQuery] = useState("");
+  const [exporting, startExport] = useTransition();
   const supabaseRef = useRef<ReturnType<typeof createClient> | null>(null);
   if (!supabaseRef.current) supabaseRef.current = createClient();
   const supabase = supabaseRef.current;
 
   const nameById = new Map(profiles.map((p) => [p.id, p.full_name ?? "Staf"]));
+  const lastChangeById = new Map(
+    lastChange
+      .filter((l): l is { ticket_id: string; changed_by: string } => !!l.ticket_id && !!l.changed_by)
+      .map((l) => [l.ticket_id, l.changed_by]),
+  );
 
   const refetch = useCallback(async () => {
-    const [{ data }, { data: profs }] = await Promise.all([
+    const [{ data }, { data: profs }, { data: lastChanges }] = await Promise.all([
       supabase
         .from("service_tickets")
         .select(SELECT_COLUMNS)
         .order("updated_at", { ascending: true })
         .limit(300),
       supabase.from("profiles").select("id, full_name"),
+      supabase.from("service_ticket_last_change").select("ticket_id, changed_by"),
     ]);
     setTickets((data as Row[]) ?? []);
     if (profs) setProfiles(profs);
+    if (lastChanges) setLastChange(lastChanges);
   }, [supabase]);
 
   useEffect(() => {
@@ -107,6 +123,17 @@ export function TicketBoard({
     );
   }, [tickets, q]);
 
+  function exportCsv() {
+    startExport(async () => {
+      try {
+        const csv = await exportTicketsCsvAction();
+        downloadTextFile(`vicmic-daftar-servis-${todayWIB()}.csv`, csv);
+      } catch (e) {
+        toast.error((e as Error).message);
+      }
+    });
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -117,24 +144,30 @@ export function TicketBoard({
             {q ? ` dari ${tickets.length}` : ""} tiket · diperbarui realtime
           </p>
         </div>
-        <div className="relative w-full max-w-xs">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Cari no. tiket, nama, unit…"
-            className="pl-8"
-          />
-          {query && (
-            <button
-              type="button"
-              onClick={() => setQuery("")}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              aria-label="Hapus pencarian"
-            >
-              <X className="size-4" />
-            </button>
-          )}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative w-full max-w-xs">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Cari no. tiket, nama, unit…"
+              className="pl-8"
+            />
+            {query && (
+              <button
+                type="button"
+                onClick={() => setQuery("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                aria-label="Hapus pencarian"
+              >
+                <X className="size-4" />
+              </button>
+            )}
+          </div>
+          <Button variant="outline" size="sm" onClick={exportCsv} disabled={exporting}>
+            {exporting ? <Loader2 className="animate-spin" /> : <Download className="size-3.5" />}
+            Ekspor CSV
+          </Button>
         </div>
       </div>
 
@@ -156,23 +189,30 @@ export function TicketBoard({
                 {items.length === 0 ? (
                   <p className="px-1 text-xs text-muted-foreground">Kosong</p>
                 ) : (
-                  items.map((t) => (
-                    <Link
-                      key={t.id}
-                      href={`/admin/tickets/${t.id}`}
-                      className="flex flex-col gap-0.5 rounded-lg bg-card p-3 text-xs ring-1 ring-foreground/10 transition-colors hover:bg-muted/60"
-                    >
-                      <span className="font-semibold">{t.ticket_number}</span>
-                      <span className="truncate">{t.product_description}</span>
-                      <span className="truncate text-muted-foreground">{t.customer_name}</span>
-                      <span className="mt-1 text-muted-foreground">
-                        {t.assigned_technician
-                          ? (nameById.get(t.assigned_technician) ?? "Staf")
-                          : "Belum ditugaskan"}{" "}
-                        · {sinceShort(t.updated_at)} lalu
-                      </span>
-                    </Link>
-                  ))
+                  items.map((t) => {
+                    const changerId = lastChangeById.get(t.id);
+                    const changerName = changerId ? (nameById.get(changerId) ?? "Staf") : null;
+                    return (
+                      <Link
+                        key={t.id}
+                        href={`/admin/tickets/${t.id}`}
+                        className="flex flex-col gap-0.5 rounded-lg bg-card p-3 text-xs ring-1 ring-foreground/10 transition-colors hover:bg-muted/60"
+                      >
+                        <span className="font-semibold">{t.ticket_number}</span>
+                        <span className="truncate">{t.product_description}</span>
+                        <span className="truncate text-muted-foreground">{t.customer_name}</span>
+                        <span className="mt-1 text-muted-foreground">
+                          {t.assigned_technician
+                            ? (nameById.get(t.assigned_technician) ?? "Staf")
+                            : "Belum ditugaskan"}{" "}
+                          · {sinceShort(t.updated_at)} lalu
+                        </span>
+                        {changerName && (
+                          <span className="text-muted-foreground">diubah oleh {changerName}</span>
+                        )}
+                      </Link>
+                    );
+                  })
                 )}
               </div>
             </div>

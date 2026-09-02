@@ -14,8 +14,7 @@ harian otomatis**. PWA — bisa di-install di HP pelanggan maupun tablet staf.
 | Database / Auth / Realtime | Supabase (PostgreSQL) |
 | Object storage | **Supabase Storage** (bucket `vicmic-photos`) — *bukan Cloudflare R2* |
 | Kompresi gambar | `browser-image-compression` (WebP, ≤1280px, ~150–200 KB) |
-| Tanda tangan | `react-signature-canvas` |
-| Email | Resend |
+| Email | Resend (notifikasi, rekap harian & bulanan dgn lampiran CSV) |
 | Hosting & Cron | Vercel |
 | Brand | Logo Vicmic Serpong (`public/logo-mark.png` — dipakai di UI & ikon PWA/favicon; `public/logo.png` — lockup lengkap dgn wordmark) |
 
@@ -38,8 +37,8 @@ npm run dev
 | `NEXT_PUBLIC_APP_URL` | – | URL publik (metadata/OG). Kosong = auto pakai URL Vercel |
 | `RESEND_API_KEY` | – | tanpa ini, email dilewati (app tetap jalan) |
 | `RESEND_FROM` | – | `Vicmic Service <noreply@domain>` (domain harus terverifikasi di Resend) |
-| `RECAP_EMAIL_RECIPIENT` | – | tujuan email rekap harian (boleh Gmail biasa) |
-| `CRON_SECRET` | – | token acak untuk mengamankan `/api/cron/daily-report` |
+| `RECAP_EMAIL_RECIPIENT` | – | tujuan email rekap harian & bulanan (boleh Gmail biasa) |
+| `CRON_SECRET` | – | token acak untuk mengamankan `/api/cron/daily-report` & `/api/cron/monthly-report` |
 
 ## Database
 
@@ -47,6 +46,8 @@ Skema + RPC + RLS ada di [`supabase/migrations/`](supabase/migrations/). Terapka
 Supabase SQL Editor (urut nama file) atau `supabase db push`.
 
 - Tabel: `queues`, `service_tickets`, `service_ticket_logs`, `profiles`, `daily_counters`
+- View: `service_ticket_last_change` (baris log terakhir per tiket — dipakai untuk kolom
+  "diubah oleh" di Workbench & Daftar Servis tanpa fetch semua log)
 - RPC: `create_queue_ticket`, `next_ticket_number`, `pull_next_ticket` (FIFO, `FOR UPDATE SKIP LOCKED`), `public_track_ticket`
 - Timezone DB di-set `Asia/Jakarta`; `queue_date` default eksplisit WIB
 - Nomor antrean anti-race via `daily_counters` (reset harian, format `A-01`/`B-01`/`C-01`)
@@ -67,9 +68,11 @@ update public.profiles set role = 'technician' where id = '<uuid>';
 1. Import repo di [vercel.com/new](https://vercel.com/new) → framework Next.js (auto).
 2. Isi semua environment variables (lihat tabel di atas).
 3. Deploy. Tiap `git push` ke `main` = auto-deploy.
-4. Cron `/api/cron/daily-report` terdaftar otomatis dari [`vercel.json`](vercel.json)
-   (jadwal `0 15 * * *` UTC = **22:00 WIB**). Vercel menyuntik header
-   `Authorization: Bearer $CRON_SECRET` sendiri.
+4. Cron terdaftar otomatis dari [`vercel.json`](vercel.json). Vercel menyuntik header
+   `Authorization: Bearer $CRON_SECRET` sendiri:
+   - `/api/cron/daily-report` — `0 15 * * *` UTC = **22:00 WIB**, tiap hari.
+   - `/api/cron/monthly-report` — `0 1 1 * *` UTC = **08:00 WIB tgl 1**, kirim rekap bulan
+     yang baru tutup (unit selesai/diambil + lampiran CSV).
 
 ## Peta route
 
@@ -80,16 +83,20 @@ update public.profiles set role = 'technician' where id = '<uuid>';
 /tracking                 Cek status servis (nomor tiket)
 /login                    Masuk staf
 /admin/queue              Papan panggil meja depan (realtime)
-/admin/tickets            Daftar Servis — papan status Kanban semua tiket (realtime, pencarian)
+/admin/tickets            Daftar Servis — papan status Kanban semua tiket (realtime,
+                          pencarian, "diubah oleh", ekspor CSV)
 /admin/intake/new         Servis Baru — form penerimaan unit (foto)
 /admin/pickup             Validasi & penyerahan unit
-/admin/tickets/[id]       Detail tiket — admin/owner bisa ubah status BEBAS + wajib catatan,
-                          serta edit data / hapus tiket
+/admin/tickets/[id]       Detail tiket — ubah status (lihat "Alur status servis" di
+                          bawah untuk batasan per role), edit data / hapus tiket
 /admin/tickets/[id]/edit  Koreksi data tiket (salah input saat Servis Baru) — admin/owner
+/admin/reports            Laporan — dashboard analitik + ekspor/kirim rekap bulanan — admin/owner
 /admin/staff              Kelola staf (owner) + reset data uji coba
-/tech/workbench           Dashboard teknisi + Tarik Tiket FIFO (semua tiket aktif terlihat)
+/tech/workbench           Dashboard teknisi + Tarik Tiket FIFO (tiket yg sudah ditarik saja
+                          yang terlihat — tiket baru sengaja disembunyikan, lihat di bawah)
 /tech/workbench/[id]      Detail tiket — teknisi mengikuti alur status (tak bisa mundur)
 /api/cron/daily-report    Rekap harian (cron)
+/api/cron/monthly-report  Rekap bulanan + lampiran CSV unit selesai (cron)
 ```
 
 ## Alur status servis
@@ -99,7 +106,7 @@ update public.profiles set role = 'technician' where id = '<uuid>';
 Transisi yang diizinkan didefinisikan di `lib/constants.ts` → `TICKET_STATUS_FLOW`.
 
 Server action tunggal `lib/actions/tickets.ts` → `updateTicketStatus()` menegakkan ini
-berdasarkan role pemanggil:
+berdasarkan role pemanggil — **tiga tingkat**, makin ke atas makin longgar:
 - **Teknisi**: hanya boleh mengikuti `TICKET_STATUS_FLOW` — alur MAJU murni, tanpa jalur
   mundur/lateral sama sekali (mis. `QC_TESTING` tidak bisa balik ke `IN_REPAIR`). Semua
   teknisi bisa melihat & mengubah **semua** tiket yang sudah ditarik (bukan cuma yang
@@ -110,13 +117,18 @@ berdasarkan role pemanggil:
   tiket `INTAKE` tertua (RPC `pull_next_ticket`, `FOR UPDATE SKIP LOCKED`) dan langsung
   menandainya `DIAGNOSING` untuk teknisi tersebut. Server action `updateTicketStatus`
   menolak setiap upaya teknisi mengubah status langsung dari `INTAKE` (harus lewat FIFO).
-- **Admin / owner**: bebas pindah ke status apa pun (mis. mengoreksi kesalahan input atau
-  membalik status), TAPI wajib mengisi catatan alasan perubahan. Lewat `/admin/tickets/[id]`
-  atau Daftar Servis `/admin/tickets`.
+- **Admin**: **hanya** boleh mengubah `READY_FOR_PICKUP` → `CLOSED` (menyerahkan unit ke
+  pelanggan) — tidak bisa mengubah status bolak-balik di titik lain sama sekali. Ini otomatis
+  menutup antrean pengambilan terkait juga (sama seperti lewat `/admin/pickup`).
+- **Owner**: bebas pindah ke status apa pun (mis. mengoreksi kesalahan atau membalik
+  status), TAPI wajib mengisi catatan alasan perubahan. Ini satu-satunya jalan resmi untuk
+  koreksi status di luar alur normal.
 
 Setiap perubahan status selalu tercatat di `service_ticket_logs` (siapa, dari status apa,
-ke status apa, catatan, waktu) dan ditampilkan di riwayat tiket — tidak bisa
-dipalsukan/dihapus dari UI.
+ke status apa, catatan, waktu) dan ditampilkan di riwayat tiket ("Riwayat") — tidak bisa
+dipalsukan/dihapus dari UI. Baris terakhirnya juga ditampilkan sebagai "diubah oleh {nama}"
+di daftar Workbench & Daftar Servis (lewat view `service_ticket_last_change`), supaya
+langsung kelihatan siapa yang terakhir menyentuh status suatu tiket tanpa buka detail.
 
 Admin/owner juga bisa **mengoreksi data tiket** (nama, kontak, deskripsi unit, kelengkapan,
 keluhan, kondisi fisik) lewat `/admin/tickets/[id]/edit`, atau **menghapus tiket** sepenuhnya
@@ -125,6 +137,25 @@ role teknisi (`lib/auth.ts` → `requireFrontDesk()`).
 
 Aplikasi ini murni untuk **alur kerja (workflow)** — pelacakan biaya/pembayaran per unit
 tidak lagi ditampilkan di intake, workbench, maupun pengambilan.
+
+## Laporan & ekspor (`/admin/reports`, admin/owner)
+
+Logika angkanya ada di `lib/reports.ts` (dipakai bareng oleh Server Action & cron, supaya
+sekali hitung dua kali pakai):
+
+- **Dashboard analitik**, per bulan (bisa navigasi bulan sebelumnya/berikutnya): unit masuk,
+  unit selesai (diambil), dibatalkan, sedang berjalan (snapshot sekarang), rata-rata waktu
+  pengerjaan, unit masuk per status garansi (INW/OOW/CID/DOA), sebaran status tiket aktif
+  saat ini, unit selesai per teknisi, dan tren 6 bulan terakhir (masuk vs. selesai).
+- **Ekspor CSV** (buka langsung di Excel — ada BOM UTF-8):
+  - Tombol "Ekspor CSV" di Daftar Servis (`/admin/tickets`) — seluruh tiket, semua status/tanggal.
+  - Tombol "Ekspor CSV (selesai bulan ini)" di halaman Laporan — hanya tiket `CLOSED` pada
+    bulan yang sedang dilihat.
+- **Kirim rekap ke email owner**:
+  - Tombol "Kirim ke Email Sekarang" di halaman Laporan — kirim rekap + lampiran CSV bulan
+    yang sedang dilihat, kapan saja, ke `RECAP_EMAIL_RECIPIENT`.
+  - Cron bulanan `/api/cron/monthly-report` (`0 1 1 * *` UTC = 08:00 WIB tgl 1) — otomatis
+    kirim rekap bulan yang baru tutup, tanpa perlu diminta.
 
 ## Catatan penyimpangan dari PRD
 

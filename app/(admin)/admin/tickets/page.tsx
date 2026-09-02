@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 export default async function AdminTicketsPage() {
   const supabase = await createClient();
 
-  const [{ data: tickets }, { data: profiles }] = await Promise.all([
+  const [{ data: tickets }, { data: profiles }, { data: lastChange }] = await Promise.all([
     supabase
       .from("service_tickets")
       .select(
@@ -17,7 +17,14 @@ export default async function AdminTicketsPage() {
       .order("updated_at", { ascending: true })
       .limit(300),
     supabase.from("profiles").select("id, full_name"),
+    supabase.from("service_ticket_last_change").select("ticket_id, changed_by"),
   ]);
 
-  return <TicketBoard initialTickets={tickets ?? []} initialProfiles={profiles ?? []} />;
+  return (
+    <TicketBoard
+      initialTickets={tickets ?? []}
+      initialProfiles={profiles ?? []}
+      initialLastChange={lastChange ?? []}
+    />
+  );
 }

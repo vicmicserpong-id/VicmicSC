@@ -46,6 +46,35 @@ export function todayBoundsWIB(): { day: string; start: string; end: string } {
   };
 }
 
+/** Bulan berjalan (YYYY-MM) menurut zona WIB. */
+export function currentMonthWIB(): string {
+  return todayWIB().slice(0, 7);
+}
+
+/** Geser "YYYY-MM" mundur/maju `delta` bulan (delta negatif = mundur). */
+export function shiftMonth(yearMonth: string, delta: number): string {
+  const [y, m] = yearMonth.split("-").map(Number);
+  const total = y * 12 + (m - 1) + delta;
+  const ny = Math.floor(total / 12);
+  const nm = (total % 12) + 1;
+  return `${ny}-${String(nm).padStart(2, "0")}`;
+}
+
+/** Batas awal/akhir sebuah bulan "YYYY-MM" (WIB) dalam ISO UTC — untuk query rentang bulan. */
+export function monthBoundsWIB(yearMonth: string): { start: string; end: string } {
+  const startUtc = new Date(`${yearMonth}-01T00:00:00+07:00`);
+  // Bangun dari string "YYYY-MM" bulan berikutnya (bukan Date.setUTCMonth), supaya
+  // tidak salah rollover saat bulan awal punya 31 hari (mis. Agustus -> September).
+  const endUtc = new Date(`${shiftMonth(yearMonth, 1)}-01T00:00:00+07:00`);
+  return { start: startUtc.toISOString(), end: endUtc.toISOString() };
+}
+
+/** Label bulan yang enak dibaca, mis. "2026-09" -> "September 2026". */
+export function monthLabelWIB(yearMonth: string): string {
+  const d = new Date(`${yearMonth}-01T00:00:00+07:00`);
+  return new Intl.DateTimeFormat("id-ID", { month: "long", year: "numeric", timeZone: "Asia/Jakarta" }).format(d);
+}
+
 /** Selisih waktu singkat dari `iso` sampai sekarang, mis. "12 mnt". */
 export function sinceShort(iso: string): string {
   const mins = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 60000));

@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
+import { getStaff } from "@/lib/auth";
 import { TicketDetailView } from "@/components/shared/ticket-detail-view";
 
 export const metadata = { title: "Detail Tiket" };
@@ -12,6 +13,7 @@ export default async function TechTicketPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const staff = await getStaff();
   const supabase = await createClient();
 
   const { data: ticket } = await supabase
@@ -40,6 +42,7 @@ export default async function TechTicketPage({
       logs={logs ?? []}
       profiles={profiles ?? []}
       mode="technician"
+      role={staff.role}
       assignedName={assignedName}
       backHref="/tech/workbench"
       backLabel="Workbench"

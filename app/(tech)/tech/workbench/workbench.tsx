@@ -27,6 +27,7 @@ type Row = {
 };
 
 type Profile = { id: string; full_name: string | null };
+type LastChange = { ticket_id: string | null; changed_by: string | null };
 
 const SELECT_COLUMNS =
   "id, ticket_number, customer_name, product_description, status, complaint_description, assigned_technician, created_at, updated_at";
@@ -36,16 +37,19 @@ export function Workbench({
   initialTickets,
   initialPool,
   initialProfiles,
+  initialLastChange,
 }: {
   meId: string;
   initialTickets: Row[];
   initialPool: number;
   initialProfiles: Profile[];
+  initialLastChange: LastChange[];
 }) {
   const router = useRouter();
   const [tickets, setTickets] = useState<Row[]>(initialTickets);
   const [pool, setPool] = useState(initialPool);
   const [profiles, setProfiles] = useState<Profile[]>(initialProfiles);
+  const [lastChange, setLastChange] = useState<LastChange[]>(initialLastChange);
   const [query, setQuery] = useState("");
   const [pending, startTransition] = useTransition();
   const supabaseRef = useRef<ReturnType<typeof createClient> | null>(null);
@@ -53,9 +57,13 @@ export function Workbench({
   const supabase = supabaseRef.current;
 
   const nameById = new Map(profiles.map((p) => [p.id, p.full_name ?? "Staf"]));
+  const lastChangeById = new Map(
+    lastChange.filter((l): l is { ticket_id: string; changed_by: string } => !!l.ticket_id && !!l.changed_by)
+      .map((l) => [l.ticket_id, l.changed_by]),
+  );
 
   const refetch = useCallback(async () => {
-    const [{ data }, { count }, { data: profs }] = await Promise.all([
+    const [{ data }, { count }, { data: profs }, { data: lastChanges }] = await Promise.all([
       supabase
         .from("service_tickets")
         .select(SELECT_COLUMNS)
@@ -66,10 +74,12 @@ export function Workbench({
         .select("id", { count: "exact", head: true })
         .eq("status", "INTAKE"),
       supabase.from("profiles").select("id, full_name"),
+      supabase.from("service_ticket_last_change").select("ticket_id, changed_by"),
     ]);
     setTickets((data as Row[]) ?? []);
     setPool(count ?? 0);
     if (profs) setProfiles(profs);
+    if (lastChanges) setLastChange(lastChanges);
   }, [supabase]);
 
   useEffect(() => {
@@ -175,6 +185,8 @@ export function Workbench({
               ? nameById.get(row.assigned_technician)
               : null;
             const isMine = row.assigned_technician === meId;
+            const changerId = lastChangeById.get(row.id);
+            const changerName = changerId ? (nameById.get(changerId) ?? "Staf") : null;
             return (
               <Link
                 key={row.id}
@@ -196,8 +208,8 @@ export function Workbench({
                     {row.customer_name} · {row.complaint_description}
                   </p>
                   <p className="mt-0.5 text-xs text-muted-foreground">
-                    {assignedName ? `${assignedName} · ` : ""}diperbarui{" "}
-                    {sinceShort(row.updated_at)} lalu
+                    {assignedName ? `Ditugaskan ${assignedName} · ` : ""}
+                    diubah oleh {changerName ?? "—"} · {sinceShort(row.updated_at)} lalu
                   </p>
                 </div>
                 <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
