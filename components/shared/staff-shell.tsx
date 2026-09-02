@@ -14,11 +14,15 @@ const NAV: Record<"admin" | "tech", { href: string; label: string; ownerOnly?: b
     { href: "/admin/tickets", label: "Daftar Servis" },
     { href: "/admin/intake/new", label: "Servis Baru" },
     { href: "/admin/pickup", label: "Pengambilan" },
+    { href: "/admin/scan", label: "Scan QR" },
     { href: "/admin/reports", label: "Laporan" },
     { href: "/admin/customers", label: "Pelanggan" },
     { href: "/admin/staff", label: "Staf", ownerOnly: true },
   ],
-  tech: [{ href: "/tech/workbench", label: "Workbench" }],
+  tech: [
+    { href: "/tech/workbench", label: "Workbench" },
+    { href: "/tech/scan", label: "Scan QR" },
+  ],
 };
 
 export function StaffShell({
