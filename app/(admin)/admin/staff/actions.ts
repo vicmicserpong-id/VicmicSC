@@ -100,3 +100,38 @@ export async function resetTodayData(): Promise<{ queues: number; tickets: numbe
 
   return { queues: delQueues?.length ?? 0, tickets: delTickets?.length ?? 0 };
 }
+
+/**
+ * Hapus SELURUH antrean & tiket servis (semua tanggal, seluruh riwayat) —
+ * untuk membersihkan total data uji coba sebelum go-live. Akun staf
+ * (auth.users / profiles) TIDAK ikut terhapus.
+ */
+export async function resetAllData(): Promise<{ queues: number; tickets: number }> {
+  await requireOwner();
+
+  const admin = createAdminClient();
+
+  // .not("id", "is", null) = idiom Supabase untuk "hapus semua baris"
+  // (PostgREST mewajibkan minimal satu filter pada DELETE).
+  const { data: delTickets, error: e1 } = await admin
+    .from("service_tickets")
+    .delete()
+    .not("id", "is", null)
+    .select("id");
+  if (e1) throw new Error(e1.message);
+
+  const { data: delQueues, error: e2 } = await admin
+    .from("queues")
+    .delete()
+    .not("id", "is", null)
+    .select("id");
+  if (e2) throw new Error(e2.message);
+
+  await admin.from("daily_counters").delete().not("scope", "is", null);
+
+  revalidatePath("/admin/queue");
+  revalidatePath("/tech/workbench");
+  revalidatePath("/admin/staff");
+
+  return { queues: delQueues?.length ?? 0, tickets: delTickets?.length ?? 0 };
+}

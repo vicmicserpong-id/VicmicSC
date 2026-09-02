@@ -18,17 +18,25 @@ export default async function StaffPage() {
   const admin = createAdminClient();
   const { day, start, end } = todayBoundsWIB();
 
-  const [{ data: list }, { data: profiles }, { count: queueCount }, { count: ticketCount }] =
-    await Promise.all([
-      admin.auth.admin.listUsers({ perPage: 200 }),
-      admin.from("profiles").select("id, full_name, role, created_at"),
-      admin.from("queues").select("id", { count: "exact", head: true }).eq("queue_date", day),
-      admin
-        .from("service_tickets")
-        .select("id", { count: "exact", head: true })
-        .gte("created_at", start)
-        .lt("created_at", end),
-    ]);
+  const [
+    { data: list },
+    { data: profiles },
+    { count: queueCount },
+    { count: ticketCount },
+    { count: totalQueueCount },
+    { count: totalTicketCount },
+  ] = await Promise.all([
+    admin.auth.admin.listUsers({ perPage: 200 }),
+    admin.from("profiles").select("id, full_name, role, created_at"),
+    admin.from("queues").select("id", { count: "exact", head: true }).eq("queue_date", day),
+    admin
+      .from("service_tickets")
+      .select("id", { count: "exact", head: true })
+      .gte("created_at", start)
+      .lt("created_at", end),
+    admin.from("queues").select("id", { count: "exact", head: true }),
+    admin.from("service_tickets").select("id", { count: "exact", head: true }),
+  ]);
 
   const byId = new Map((profiles ?? []).map((p) => [p.id, p]));
   const staff: StaffRow[] = (list?.users ?? [])
@@ -47,7 +55,12 @@ export default async function StaffPage() {
   return (
     <div className="flex flex-col gap-8">
       <StaffManager meId={me.id} initial={staff} />
-      <DangerZone queues={queueCount ?? 0} tickets={ticketCount ?? 0} />
+      <DangerZone
+        todayQueues={queueCount ?? 0}
+        todayTickets={ticketCount ?? 0}
+        totalQueues={totalQueueCount ?? 0}
+        totalTickets={totalTicketCount ?? 0}
+      />
     </div>
   );
 }
