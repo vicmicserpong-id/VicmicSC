@@ -1,8 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { Search, X } from "lucide-react";
 
+import { Input } from "@/components/ui/input";
 import { TICKET_STATUS_LABEL, type TicketStatus } from "@/lib/constants";
 import { sinceShort } from "@/lib/format";
 import { createClient } from "@/lib/supabase/client";
@@ -49,7 +51,7 @@ type Profile = { id: string; full_name: string | null };
 const SELECT_COLUMNS =
   "id, ticket_number, customer_name, product_description, status, assigned_technician, updated_at";
 
-export function Board({
+export function TicketBoard({
   initialTickets,
   initialProfiles,
 }: {
@@ -58,6 +60,7 @@ export function Board({
 }) {
   const [tickets, setTickets] = useState<Row[]>(initialTickets);
   const [profiles, setProfiles] = useState<Profile[]>(initialProfiles);
+  const [query, setQuery] = useState("");
   const supabaseRef = useRef<ReturnType<typeof createClient> | null>(null);
   if (!supabaseRef.current) supabaseRef.current = createClient();
   const supabase = supabaseRef.current;
@@ -79,7 +82,7 @@ export function Board({
 
   useEffect(() => {
     const channel = supabase
-      .channel("admin-board")
+      .channel("admin-tickets")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "service_tickets" },
@@ -93,18 +96,51 @@ export function Board({
     };
   }, [supabase, refetch]);
 
+  const q = query.trim().toLowerCase();
+  const filtered = useMemo(() => {
+    if (!q) return tickets;
+    return tickets.filter(
+      (t) =>
+        t.ticket_number.toLowerCase().includes(q) ||
+        t.customer_name.toLowerCase().includes(q) ||
+        t.product_description.toLowerCase().includes(q),
+    );
+  }, [tickets, q]);
+
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="text-lg font-semibold">Papan Status Servis</h1>
-        <p className="text-sm text-muted-foreground">
-          {tickets.length} tiket · diperbarui realtime
-        </p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-lg font-semibold">Daftar Servis</h1>
+          <p className="text-sm text-muted-foreground">
+            {filtered.length}
+            {q ? ` dari ${tickets.length}` : ""} tiket · diperbarui realtime
+          </p>
+        </div>
+        <div className="relative w-full max-w-xs">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Cari no. tiket, nama, unit…"
+            className="pl-8"
+          />
+          {query && (
+            <button
+              type="button"
+              onClick={() => setQuery("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              aria-label="Hapus pencarian"
+            >
+              <X className="size-4" />
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="flex gap-3 overflow-x-auto pb-2">
         {BOARD_COLUMNS.map((status) => {
-          const items = tickets.filter((t) => t.status === status);
+          const items = filtered.filter((t) => t.status === status);
           return (
             <div
               key={status}

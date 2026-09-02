@@ -45,5 +45,5 @@ export async function closeTicket(ticketId: string) {
     .in("status", ["waiting", "serving"]);
 
   revalidatePath("/admin/queue");
-  revalidatePath("/admin/board");
+  revalidatePath("/admin/tickets");
 }

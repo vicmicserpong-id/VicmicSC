@@ -36,7 +36,7 @@ export async function pullNextTicket(): Promise<
   });
   if (error) throw new Error(error.message);
   revalidatePath("/tech/workbench");
-  revalidatePath("/admin/board");
+  revalidatePath("/admin/tickets");
   // PostgREST mengembalikan baris berisi null (bukan null) saat tak ada tiket.
   if (!data || !data.id) return null;
   return { id: data.id, ticket_number: data.ticket_number };
@@ -123,5 +123,5 @@ export async function updateTicketStatus(input: StatusChange) {
   revalidatePath(`/tech/workbench/${input.ticketId}`);
   revalidatePath(`/admin/tickets/${input.ticketId}`);
   revalidatePath("/tech/workbench");
-  revalidatePath("/admin/board");
+  revalidatePath("/admin/tickets");
 }

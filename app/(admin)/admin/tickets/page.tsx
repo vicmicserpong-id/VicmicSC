@@ -1,11 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
 
-import { Board } from "./board";
+import { TicketBoard } from "./ticket-board";
 
-export const metadata = { title: "Papan Status" };
+export const metadata = { title: "Daftar Servis" };
 export const dynamic = "force-dynamic";
 
-export default async function BoardPage() {
+export default async function AdminTicketsPage() {
   const supabase = await createClient();
 
   const [{ data: tickets }, { data: profiles }] = await Promise.all([
@@ -19,5 +19,5 @@ export default async function BoardPage() {
     supabase.from("profiles").select("id, full_name"),
   ]);
 
-  return <Board initialTickets={tickets ?? []} initialProfiles={profiles ?? []} />;
+  return <TicketBoard initialTickets={tickets ?? []} initialProfiles={profiles ?? []} />;
 }

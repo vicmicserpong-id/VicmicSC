@@ -49,16 +49,22 @@ export const TICKET_STATUS_LABEL: Record<TicketStatus, string> = {
   CANCELLED: "Dibatalkan",
 };
 
-/** Transisi status yang diizinkan dari status saat ini (dropdown teknisi). */
+/**
+ * Transisi status yang diizinkan untuk TEKNISI — murni MAJU, tidak ada
+ * jalur mundur/lateral (mis. QC_TESTING tidak boleh balik ke IN_REPAIR).
+ * Koreksi/pembalikan status hanya lewat override admin (lihat
+ * lib/actions/tickets.ts -> updateTicketStatus, role admin/owner bebas
+ * pindah ke status apa pun asal disertai catatan).
+ */
 export const TICKET_STATUS_FLOW: Record<TicketStatus, TicketStatus[]> = {
   INTAKE: ["DIAGNOSING", "CANCELLED"],
   DIAGNOSING: ["WAITING_APPROVAL", "WAITING_PART", "IN_REPAIR", "CANCELLED"],
-  WAITING_APPROVAL: ["IN_REPAIR", "WAITING_PART", "CANCELLED"],
+  WAITING_APPROVAL: ["WAITING_PART", "IN_REPAIR", "CANCELLED"],
   WAITING_PART: ["PART_INSTALLING", "CANCELLED"],
-  PART_INSTALLING: ["IN_REPAIR", "QC_TESTING", "CANCELLED"],
-  IN_REPAIR: ["QC_TESTING", "WAITING_PART", "CANCELLED"],
-  QC_TESTING: ["READY_FOR_PICKUP", "IN_REPAIR"],
-  READY_FOR_PICKUP: ["CLOSED", "IN_REPAIR"],
+  PART_INSTALLING: ["QC_TESTING", "CANCELLED"],
+  IN_REPAIR: ["QC_TESTING", "CANCELLED"],
+  QC_TESTING: ["READY_FOR_PICKUP", "CANCELLED"],
+  READY_FOR_PICKUP: ["CLOSED"],
   CLOSED: [],
   CANCELLED: [],
 };

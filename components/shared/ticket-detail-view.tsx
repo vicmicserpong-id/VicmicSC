@@ -26,8 +26,10 @@ import { updateTicketStatus } from "@/lib/actions/tickets";
 type Ticket = Database["public"]["Tables"]["service_tickets"]["Row"];
 type Log = Pick<
   Database["public"]["Tables"]["service_ticket_logs"]["Row"],
-  "id" | "previous_status" | "new_status" | "notes" | "created_at"
+  "id" | "previous_status" | "new_status" | "notes" | "created_at" | "changed_by"
 >;
+
+type Profile = { id: string; full_name: string | null };
 
 const ALL_STATUSES = Object.keys(TICKET_STATUS_LABEL) as TicketStatus[];
 const HIDDEN_TARGETS: TicketStatus[] = ["CLOSED"]; // ditangani meja depan (mode teknisi)
@@ -42,6 +44,7 @@ function needs(target: TicketStatus) {
 export function TicketDetailView({
   ticket,
   logs,
+  profiles,
   mode,
   assignedName,
   backHref,
@@ -49,12 +52,14 @@ export function TicketDetailView({
 }: {
   ticket: Ticket;
   logs: Log[];
+  profiles: Profile[];
   mode: "technician" | "admin";
   assignedName: string | null;
   backHref: string;
   backLabel: string;
 }) {
   const router = useRouter();
+  const nameById = new Map(profiles.map((p) => [p.id, p.full_name ?? "Staf"]));
   const [target, setTarget] = useState<TicketStatus | null>(null);
   const [notes, setNotes] = useState("");
   const [partNotes, setPartNotes] = useState(ticket.part_notes ?? "");
@@ -313,7 +318,8 @@ export function TicketDetailView({
                 </p>
                 {log.notes && <p className="text-muted-foreground">{log.notes}</p>}
                 <p className="text-xs text-muted-foreground">
-                  {formatDateTimeWIB(log.created_at)}
+                  oleh <span className="font-medium">{nameById.get(log.changed_by) ?? "Staf"}</span>{" "}
+                  · {formatDateTimeWIB(log.created_at)}
                 </p>
               </div>
             </li>

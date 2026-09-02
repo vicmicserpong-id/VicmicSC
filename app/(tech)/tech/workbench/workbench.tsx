@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Download, Loader2, ChevronRight, Inbox } from "lucide-react";
+import { Download, Loader2, ChevronRight, Inbox, Search, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { TicketStatusBadge } from "@/components/shared/status-badge";
 import { createClient } from "@/lib/supabase/client";
 import { sinceShort } from "@/lib/format";
@@ -45,6 +46,7 @@ export function Workbench({
   const [tickets, setTickets] = useState<Row[]>(initialTickets);
   const [pool, setPool] = useState(initialPool);
   const [profiles, setProfiles] = useState<Profile[]>(initialProfiles);
+  const [query, setQuery] = useState("");
   const [pending, startTransition] = useTransition();
   const supabaseRef = useRef<ReturnType<typeof createClient> | null>(null);
   if (!supabaseRef.current) supabaseRef.current = createClient();
@@ -86,6 +88,17 @@ export function Workbench({
     };
   }, [supabase, refetch]);
 
+  const q = query.trim().toLowerCase();
+  const filtered = useMemo(() => {
+    if (!q) return tickets;
+    return tickets.filter(
+      (t) =>
+        t.ticket_number.toLowerCase().includes(q) ||
+        t.customer_name.toLowerCase().includes(q) ||
+        t.product_description.toLowerCase().includes(q),
+    );
+  }, [tickets, q]);
+
   function pull() {
     startTransition(async () => {
       try {
@@ -126,16 +139,38 @@ export function Workbench({
         </Button>
       </div>
 
+      <div className="relative max-w-sm">
+        <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Cari no. tiket, nama, unit…"
+          className="pl-8"
+        />
+        {query && (
+          <button
+            type="button"
+            onClick={() => setQuery("")}
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            aria-label="Hapus pencarian"
+          >
+            <X className="size-4" />
+          </button>
+        )}
+      </div>
+
       <div className="flex flex-col gap-2">
-        {tickets.length === 0 ? (
+        {filtered.length === 0 ? (
           <div className="flex flex-col items-center gap-2 rounded-xl bg-card p-10 text-center ring-1 ring-foreground/10">
             <Inbox className="size-8 text-muted-foreground" />
             <p className="text-sm text-muted-foreground">
-              Belum ada tiket aktif. Tekan &quot;Tarik Tiket Berikutnya&quot; untuk mulai.
+              {tickets.length === 0
+                ? 'Belum ada tiket aktif. Tekan "Tarik Tiket Berikutnya" untuk mulai.'
+                : "Tidak ada tiket yang cocok dengan pencarian."}
             </p>
           </div>
         ) : (
-          tickets.map((row) => {
+          filtered.map((row) => {
             const assignedName = row.assigned_technician
               ? nameById.get(row.assigned_technician)
               : null;

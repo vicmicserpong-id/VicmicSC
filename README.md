@@ -79,7 +79,7 @@ update public.profiles set role = 'technician' where id = '<uuid>';
 /tracking                 Cek status servis (nomor tiket)
 /login                    Masuk staf
 /admin/queue              Papan panggil meja depan (realtime)
-/admin/board              Papan Kanban status semua tiket servis (realtime)
+/admin/tickets            Daftar Servis — papan status Kanban semua tiket (realtime, pencarian)
 /admin/intake/new         Form intake unit (foto, tanda tangan)
 /admin/pickup             Validasi & penyerahan unit
 /admin/tickets/[id]       Detail tiket — admin/owner bisa ubah status BEBAS + wajib catatan
@@ -97,16 +97,17 @@ Transisi yang diizinkan didefinisikan di `lib/constants.ts` → `TICKET_STATUS_F
 
 Server action tunggal `lib/actions/tickets.ts` → `updateTicketStatus()` menegakkan ini
 berdasarkan role pemanggil:
-- **Teknisi**: hanya boleh mengikuti `TICKET_STATUS_FLOW` (alur maju/terdefinisi) — tidak
-  bisa memundurkan status semaunya. Semua teknisi bisa melihat & mengubah **semua** tiket
-  aktif (bukan cuma yang mereka tarik sendiri), supaya unit tidak macet kalau teknisi yang
-  menarik sedang libur.
-- **Admin / owner**: bebas pindah ke status apa pun (mis. mengoreksi kesalahan input), TAPI
-  wajib mengisi catatan alasan perubahan. Lewat `/admin/tickets/[id]` atau papan Kanban
-  `/admin/board`.
+- **Teknisi**: hanya boleh mengikuti `TICKET_STATUS_FLOW` — alur MAJU murni, tanpa jalur
+  mundur/lateral sama sekali (mis. `QC_TESTING` tidak bisa balik ke `IN_REPAIR`). Semua
+  teknisi bisa melihat & mengubah **semua** tiket aktif (bukan cuma yang mereka tarik
+  sendiri), supaya unit tidak macet kalau teknisi yang menarik sedang libur.
+- **Admin / owner**: bebas pindah ke status apa pun (mis. mengoreksi kesalahan input atau
+  membalik status), TAPI wajib mengisi catatan alasan perubahan. Lewat `/admin/tickets/[id]`
+  atau Daftar Servis `/admin/tickets`.
 
 Setiap perubahan status selalu tercatat di `service_ticket_logs` (siapa, dari status apa,
-ke status apa, catatan, waktu) — tidak bisa dipalsukan/dihapus dari UI.
+ke status apa, catatan, waktu) dan ditampilkan di riwayat tiket — tidak bisa
+dipalsukan/dihapus dari UI.
 
 Aplikasi ini murni untuk **alur kerja (workflow)** — pelacakan biaya/pembayaran per unit
 tidak lagi ditampilkan di intake, workbench, maupun pengambilan.

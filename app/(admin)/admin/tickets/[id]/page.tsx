@@ -21,29 +21,28 @@ export default async function AdminTicketPage({
     .maybeSingle();
   if (!ticket) notFound();
 
-  const [{ data: logs }, { data: tech }] = await Promise.all([
+  const [{ data: logs }, { data: profiles }] = await Promise.all([
     supabase
       .from("service_ticket_logs")
-      .select("id, previous_status, new_status, notes, created_at")
+      .select("id, previous_status, new_status, notes, created_at, changed_by")
       .eq("ticket_id", id)
       .order("created_at", { ascending: false }),
-    ticket.assigned_technician
-      ? supabase
-          .from("profiles")
-          .select("full_name")
-          .eq("id", ticket.assigned_technician)
-          .maybeSingle()
-      : Promise.resolve({ data: null }),
+    supabase.from("profiles").select("id, full_name"),
   ]);
+
+  const assignedName = ticket.assigned_technician
+    ? (profiles ?? []).find((p) => p.id === ticket.assigned_technician)?.full_name ?? null
+    : null;
 
   return (
     <TicketDetailView
       ticket={ticket}
       logs={logs ?? []}
+      profiles={profiles ?? []}
       mode="admin"
-      assignedName={tech?.full_name ?? null}
-      backHref="/admin/board"
-      backLabel="Papan Status"
+      assignedName={assignedName}
+      backHref="/admin/tickets"
+      backLabel="Daftar Servis"
     />
   );
 }
