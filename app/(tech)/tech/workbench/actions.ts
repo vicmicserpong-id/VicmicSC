@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
 import { TICKET_STATUS_FLOW, type TicketStatus } from "@/lib/constants";
+import { sendEmail, readyEmailHtml } from "@/lib/email";
 import type { Database } from "@/lib/database.types";
 
 type TicketUpdate = Database["public"]["Tables"]["service_tickets"]["Update"];
@@ -77,6 +78,26 @@ export async function updateTicketStatus(input: StatusChange) {
     changed_by: user.id,
     notes: input.notes?.trim() || null,
   });
+
+  // Notifikasi "siap diambil" ke pelanggan (best-effort — tidak menggagalkan aksi).
+  if (input.to === "READY_FOR_PICKUP") {
+    const { data: t } = await supabase
+      .from("service_tickets")
+      .select("ticket_number, customer_name, customer_email, product_description, final_cost")
+      .eq("id", input.ticketId)
+      .single();
+    if (t?.customer_email) {
+      try {
+        await sendEmail({
+          to: t.customer_email,
+          subject: `Unit ${t.ticket_number} siap diambil — Vicmic Service`,
+          html: readyEmailHtml(t),
+        });
+      } catch (e) {
+        console.error("[notify ready] gagal kirim email:", e);
+      }
+    }
+  }
 
   revalidatePath(`/tech/workbench/${input.ticketId}`);
   revalidatePath("/tech/workbench");
