@@ -3,8 +3,10 @@ import Image from "next/image";
 import { LogOut } from "lucide-react";
 
 import { StaffNav } from "@/components/shared/staff-nav";
+import { NotificationBell } from "@/components/shared/notification-bell";
 import { Button } from "@/components/ui/button";
 import { ROLE_LABEL, type AppRole } from "@/lib/constants";
+import type { NotificationItem } from "@/lib/notifications";
 
 const NAV: Record<"admin" | "tech", { href: string; label: string; ownerOnly?: boolean }[]> = {
   admin: [
@@ -13,6 +15,7 @@ const NAV: Record<"admin" | "tech", { href: string; label: string; ownerOnly?: b
     { href: "/admin/intake/new", label: "Servis Baru" },
     { href: "/admin/pickup", label: "Pengambilan" },
     { href: "/admin/reports", label: "Laporan" },
+    { href: "/admin/customers", label: "Pelanggan" },
     { href: "/admin/staff", label: "Staf", ownerOnly: true },
   ],
   tech: [{ href: "/tech/workbench", label: "Workbench" }],
@@ -22,11 +25,15 @@ export function StaffShell({
   area,
   name,
   role,
+  notifications,
+  notificationReadIds,
   children,
 }: {
   area: "admin" | "tech";
   name: string;
   role: AppRole;
+  notifications: NotificationItem[];
+  notificationReadIds: string[];
   children: React.ReactNode;
 }) {
   return (
@@ -43,6 +50,11 @@ export function StaffShell({
           />
 
           <div className="ml-auto flex items-center gap-3">
+            <NotificationBell
+              role={role}
+              initialItems={notifications}
+              initialReadIds={notificationReadIds}
+            />
             <div className="text-right leading-tight">
               <p className="text-sm font-medium">{name}</p>
               <p className="text-xs text-muted-foreground">{ROLE_LABEL[role]}</p>

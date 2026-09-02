@@ -12,7 +12,7 @@ export function StaffNav({
 }) {
   const pathname = usePathname();
   return (
-    <nav className="flex items-center gap-1">
+    <nav className="flex items-center gap-1 overflow-x-auto">
       {items.map((item) => {
         const active = pathname === item.href || pathname.startsWith(item.href + "/");
         return (

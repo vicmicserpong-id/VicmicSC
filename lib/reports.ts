@@ -103,6 +103,48 @@ export async function exportMonthlyClosedCsv(
   return { csv: ticketsToCsv(rows, nameById), count: rows.length };
 }
 
+// ── Bank data pelanggan ────────────────────────────────────────────
+type CustomerRow = {
+  phone: string | null;
+  name: string | null;
+  email: string | null;
+  total_tickets: number | null;
+  first_visit: string | null;
+  last_visit: string | null;
+  last_product: string | null;
+  last_status: TicketStatus | null;
+};
+
+/** CSV seluruh pelanggan (satu baris per nomor WhatsApp) — untuk promo/remarketing. */
+export async function exportCustomersCsv(supabase: Client): Promise<string> {
+  const { data } = await supabase
+    .from("customer_directory")
+    .select("phone, name, email, total_tickets, first_visit, last_visit, last_product, last_status")
+    .order("last_visit", { ascending: false });
+
+  const headers = [
+    "No. WhatsApp",
+    "Nama",
+    "Email",
+    "Total Servis",
+    "Kunjungan Pertama",
+    "Kunjungan Terakhir",
+    "Produk Terakhir",
+    "Status Terakhir",
+  ];
+  const body = ((data ?? []) as CustomerRow[]).map((c) => [
+    c.phone ?? "-",
+    c.name ?? "-",
+    c.email ?? "-",
+    c.total_tickets ?? 0,
+    formatDateTimeWIB(c.first_visit),
+    formatDateTimeWIB(c.last_visit),
+    c.last_product ?? "-",
+    c.last_status ? TICKET_STATUS_LABEL[c.last_status] : "-",
+  ]);
+  return toCsv(headers, body);
+}
+
 // ── Dashboard analitik ────────────────────────────────────────────
 export type MonthlyReportData = {
   yearMonth: string;

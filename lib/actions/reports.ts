@@ -3,13 +3,25 @@
 import { createClient } from "@/lib/supabase/server";
 import { requireFrontDesk } from "@/lib/auth";
 import { sendEmail, monthlyRecapEmailHtml, toBase64Attachment } from "@/lib/email";
-import { exportAllTicketsCsv, exportMonthlyClosedCsv, buildMonthlyReport } from "@/lib/reports";
+import {
+  exportAllTicketsCsv,
+  exportMonthlyClosedCsv,
+  exportCustomersCsv,
+  buildMonthlyReport,
+} from "@/lib/reports";
 
 /** CSV seluruh tiket servis — untuk tombol "Ekspor CSV" di Daftar Servis. Admin/owner saja. */
 export async function exportTicketsCsvAction(): Promise<string> {
   await requireFrontDesk();
   const supabase = await createClient();
   return exportAllTicketsCsv(supabase);
+}
+
+/** CSV bank data pelanggan (satu baris per nomor WhatsApp). Admin/owner saja. */
+export async function exportCustomersCsvAction(): Promise<string> {
+  await requireFrontDesk();
+  const supabase = await createClient();
+  return exportCustomersCsv(supabase);
 }
 
 /** CSV tiket CLOSED bulan tertentu ("YYYY-MM"). Admin/owner saja. */

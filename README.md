@@ -45,9 +45,12 @@ npm run dev
 Skema + RPC + RLS ada di [`supabase/migrations/`](supabase/migrations/). Terapkan lewat
 Supabase SQL Editor (urut nama file) atau `supabase db push`.
 
-- Tabel: `queues`, `service_tickets`, `service_ticket_logs`, `profiles`, `daily_counters`
+- Tabel: `queues`, `service_tickets`, `service_ticket_logs`, `profiles`, `daily_counters`,
+  `notifications`, `notification_reads`
 - View: `service_ticket_last_change` (baris log terakhir per tiket — dipakai untuk kolom
-  "diubah oleh" di Workbench & Daftar Servis tanpa fetch semua log)
+  "diubah oleh" di Workbench & Daftar Servis tanpa fetch semua log), `customer_directory`
+  (satu baris per nomor WhatsApp, diringkas dari riwayat `service_tickets` — "bank data"
+  pelanggan, lihat bagian Pelanggan di bawah)
 - RPC: `create_queue_ticket`, `next_ticket_number`, `pull_next_ticket` (FIFO, `FOR UPDATE SKIP LOCKED`), `public_track_ticket`
 - Timezone DB di-set `Asia/Jakarta`; `queue_date` default eksplisit WIB
 - Nomor antrean anti-race via `daily_counters` (reset harian, format `A-01`/`B-01`/`C-01`)
@@ -91,6 +94,7 @@ update public.profiles set role = 'technician' where id = '<uuid>';
                           bawah untuk batasan per role), edit data / hapus tiket
 /admin/tickets/[id]/edit  Koreksi data tiket (salah input saat Servis Baru) — admin/owner
 /admin/reports            Laporan — dashboard analitik + ekspor/kirim rekap bulanan — admin/owner
+/admin/customers          Pelanggan — bank data pelanggan + ekspor CSV — admin/owner
 /admin/staff              Kelola staf (owner) + reset data uji coba
 /tech/workbench           Dashboard teknisi + Tarik Tiket FIFO (tiket yg sudah ditarik saja
                           yang terlihat — tiket baru sengaja disembunyikan, lihat di bawah)
@@ -156,6 +160,35 @@ sekali hitung dua kali pakai):
     yang sedang dilihat, kapan saja, ke `RECAP_EMAIL_RECIPIENT`.
   - Cron bulanan `/api/cron/monthly-report` (`0 1 1 * *` UTC = 08:00 WIB tgl 1) — otomatis
     kirim rekap bulan yang baru tutup, tanpa perlu diminta.
+
+## Notifikasi (lonceng di header)
+
+Ikon lonceng ada di header semua area staf (`components/shared/notification-bell.tsx`),
+realtime lewat Supabase Realtime + badge jumlah belum dibaca. Event dibuat otomatis lewat
+**trigger database** (`supabase/migrations/20260903000000_notifications.sql`), bukan kode
+aplikasi — jadi selalu konsisten apa pun jalur yang memicunya:
+
+| Event | Target | Trigger |
+|---|---|---|
+| Unit baru diterima | Teknisi + owner | `trg_notify_new_ticket` (insert `service_tickets`) |
+| Unit siap diambil | Admin + owner | `trg_notify_ticket_ready` (update status → `READY_FOR_PICKUP`) |
+| Antrean baru masuk | Admin + owner | `trg_notify_new_queue` (insert `queues`) |
+
+Status "sudah dibaca" per staf disimpan di `notification_reads` (satu baris per
+notifikasi × user), jadi tiap orang punya status baca sendiri-sendiri meski memakai
+device/tablet yang sama secara bergantian.
+
+## Pelanggan / bank data (`/admin/customers`, admin/owner)
+
+View `customer_directory` meringkas seluruh riwayat `service_tickets` jadi satu baris per
+nomor WhatsApp (nama, email, total servis, kunjungan pertama/terakhir, produk & status
+terakhir) — tanpa tabel/data baru, selalu sinkron otomatis. Halaman Pelanggan menampilkan
+ini sebagai daftar yang bisa dicari & diekspor CSV (`exportCustomersCsvAction`), supaya bisa
+dipakai owner untuk **remarketing/promo** (mis. broadcast WhatsApp) di luar aplikasi.
+
+Sengaja **tidak** dibuatkan fitur kirim pesan massal otomatis dari dalam aplikasi — broadcast
+promo menyentuh isu consent/anti-spam WhatsApp yang sebaiknya pemilik kendalikan sendiri lewat
+tool broadcast resmi (mis. WhatsApp Business), bukan dikirim otomatis oleh sistem.
 
 ## Catatan penyimpangan dari PRD
 

@@ -249,6 +249,60 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          id: string
+          target_roles: Database["public"]["Enums"]["app_role"][]
+          type: string
+          title: string
+          body: string | null
+          link: string | null
+          ticket_id: string | null
+          queue_id: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          target_roles: Database["public"]["Enums"]["app_role"][]
+          type: string
+          title: string
+          body?: string | null
+          link?: string | null
+          ticket_id?: string | null
+          queue_id?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          target_roles?: Database["public"]["Enums"]["app_role"][]
+          type?: string
+          title?: string
+          body?: string | null
+          link?: string | null
+          ticket_id?: string | null
+          queue_id?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      notification_reads: {
+        Row: {
+          notification_id: string
+          user_id: string
+          read_at: string
+        }
+        Insert: {
+          notification_id: string
+          user_id: string
+          read_at?: string
+        }
+        Update: {
+          notification_id?: string
+          user_id?: string
+          read_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       service_ticket_last_change: {
@@ -257,6 +311,19 @@ export type Database = {
           changed_by: string | null
           new_status: Database["public"]["Enums"]["service_ticket_status"] | null
           changed_at: string | null
+        }
+        Relationships: []
+      }
+      customer_directory: {
+        Row: {
+          phone: string | null
+          name: string | null
+          email: string | null
+          total_tickets: number | null
+          first_visit: string | null
+          last_visit: string | null
+          last_product: string | null
+          last_status: Database["public"]["Enums"]["service_ticket_status"] | null
         }
         Relationships: []
       }
