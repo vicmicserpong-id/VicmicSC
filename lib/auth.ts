@@ -52,3 +52,12 @@ export async function requireFrontDesk(): Promise<Staff> {
   }
   return staff;
 }
+
+/** Seperti getStaff() tapi melempar bila admin (meja depan). Untuk aksi kerja teknisi (teknisi/owner). */
+export async function requireWorkbench(): Promise<Staff> {
+  const staff = await getStaff();
+  if (staff.role === "admin") {
+    throw new Error("Hanya teknisi atau owner yang boleh melakukan aksi ini.");
+  }
+  return staff;
+}

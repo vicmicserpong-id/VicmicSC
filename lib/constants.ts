@@ -39,7 +39,7 @@ export const QUEUE_STATUS_LABEL: Record<QueueStatus, string> = {
 export const TICKET_STATUS_LABEL: Record<TicketStatus, string> = {
   INTAKE: "Diterima",
   DIAGNOSING: "Diagnosa",
-  WAITING_APPROVAL: "Menunggu persetujuan biaya",
+  WAITING_APPROVAL: "Menunggu persetujuan",
   WAITING_PART: "Menunggu sparepart",
   PART_INSTALLING: "Pemasangan sparepart",
   IN_REPAIR: "Sedang diperbaiki",
@@ -54,13 +54,19 @@ export const TICKET_STATUS_LABEL: Record<TicketStatus, string> = {
  * jalur mundur/lateral (mis. QC_TESTING tidak boleh balik ke IN_REPAIR).
  * Koreksi/pembalikan status hanya lewat override OWNER (lihat
  * lib/actions/tickets.ts -> updateTicketStatus). Role admin lebih sempit
- * lagi dari peta ini: cuma boleh READY_FOR_PICKUP -> CLOSED.
+ * lagi dari peta ini: cuma boleh READY_FOR_PICKUP -> CLOSED, plus dua
+ * transisi khusus alur sparepart (lib/actions/spareparts.ts) yang tidak
+ * lewat peta ini sama sekali: * -> WAITING_PART dan WAITING_PART -> PART_INSTALLING.
+ *
+ * WAITING_PART bukan lagi wewenang teknisi (kosong di bawah) — teknisi cuma
+ * bisa MENGAJUKAN permintaan sparepart (requestSparepart), lalu admin yang
+ * memindahkan status begitu sparepart dipesan/tiba.
  */
 export const TICKET_STATUS_FLOW: Record<TicketStatus, TicketStatus[]> = {
   INTAKE: ["DIAGNOSING", "CANCELLED"],
-  DIAGNOSING: ["WAITING_APPROVAL", "WAITING_PART", "IN_REPAIR", "CANCELLED"],
-  WAITING_APPROVAL: ["WAITING_PART", "IN_REPAIR", "CANCELLED"],
-  WAITING_PART: ["PART_INSTALLING", "CANCELLED"],
+  DIAGNOSING: ["WAITING_APPROVAL", "IN_REPAIR", "CANCELLED"],
+  WAITING_APPROVAL: ["IN_REPAIR", "CANCELLED"],
+  WAITING_PART: [],
   PART_INSTALLING: ["QC_TESTING", "CANCELLED"],
   IN_REPAIR: ["QC_TESTING", "CANCELLED"],
   QC_TESTING: ["READY_FOR_PICKUP", "CANCELLED"],
@@ -68,6 +74,24 @@ export const TICKET_STATUS_FLOW: Record<TicketStatus, TicketStatus[]> = {
   CLOSED: [],
   CANCELLED: [],
 };
+
+// ── Alur permintaan sparepart ──────────────────────────────────────
+export type PartRequestStatus = Database["public"]["Enums"]["part_request_status"];
+
+export const PART_STATUS_LABEL: Record<PartRequestStatus, string> = {
+  none: "Tidak ada permintaan",
+  requested: "Diminta teknisi",
+  ordered: "Sudah dipesan",
+  arrived: "Sudah tiba",
+};
+
+/** Status tiket di mana teknisi masih boleh mengajukan permintaan sparepart. */
+export const PART_REQUEST_ELIGIBLE_STATUSES: TicketStatus[] = [
+  "DIAGNOSING",
+  "WAITING_APPROVAL",
+  "IN_REPAIR",
+  "PART_INSTALLING",
+];
 
 /** Status yang dihitung "selesai hari ini" untuk rekap harian. */
 export const DONE_STATUSES: TicketStatus[] = ["READY_FOR_PICKUP", "CLOSED"];

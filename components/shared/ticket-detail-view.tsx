@@ -4,7 +4,16 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Loader2, MessageCircle, Check, Pencil, Trash2 } from "lucide-react";
+import {
+  ArrowLeft,
+  Loader2,
+  MessageCircle,
+  Check,
+  Pencil,
+  Trash2,
+  Package,
+  Printer,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -24,6 +33,8 @@ import {
   TICKET_STATUS_LABEL,
   WARRANTY_LABEL,
   ACCESSORY_LABEL,
+  PART_STATUS_LABEL,
+  PART_REQUEST_ELIGIBLE_STATUSES,
   type AccessoriesShape,
   type AppRole,
   type TicketStatus,
@@ -31,6 +42,7 @@ import {
 import { formatDateTimeWIB, waLink } from "@/lib/format";
 import type { Database } from "@/lib/database.types";
 import { updateTicketStatus } from "@/lib/actions/tickets";
+import { requestSparepart, markPartOrdered, markPartArrived } from "@/lib/actions/spareparts";
 import { deleteTicket } from "@/app/(admin)/admin/tickets/[id]/data-actions";
 
 type Ticket = Database["public"]["Tables"]["service_tickets"]["Row"];
@@ -44,9 +56,10 @@ type Profile = { id: string; full_name: string | null };
 const ALL_STATUSES = Object.keys(TICKET_STATUS_LABEL) as TicketStatus[];
 const HIDDEN_TARGETS: TicketStatus[] = ["CLOSED"]; // ditangani meja depan (mode teknisi)
 
-function needs(target: TicketStatus) {
+function needs(current: TicketStatus, target: TicketStatus) {
   return {
-    partNotes: target === "WAITING_PART" || target === "PART_INSTALLING",
+    // Catatan diagnosa dicatat setiap kali meninggalkan status Diagnosa, apa pun tujuannya.
+    diagnosisNotes: current === "DIAGNOSING",
     qcNotes: target === "QC_TESTING" || target === "READY_FOR_PICKUP",
   };
 }
@@ -74,11 +87,14 @@ export function TicketDetailView({
   const nameById = new Map(profiles.map((p) => [p.id, p.full_name ?? "Staf"]));
   const [target, setTarget] = useState<TicketStatus | null>(null);
   const [notes, setNotes] = useState("");
-  const [partNotes, setPartNotes] = useState(ticket.part_notes ?? "");
+  const [diagnosisNotes, setDiagnosisNotes] = useState(ticket.diagnosis_notes ?? "");
   const [qcNotes, setQcNotes] = useState(ticket.qc_notes ?? "");
   const [pending, startTransition] = useTransition();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, startDelete] = useTransition();
+  const [requestingPart, setRequestingPart] = useState(false);
+  const [partRequestNote, setPartRequestNote] = useState("");
+  const [partPending, startPartTransition] = useTransition();
 
   const acc = ticket.accessories as unknown as AccessoriesShape;
   // Owner: bebas pindah ke status apa pun. Admin: cuma boleh menyerahkan unit
@@ -98,7 +114,7 @@ export function TicketDetailView({
     setNotes("");
   }
 
-  const req = target ? needs(target) : null;
+  const req = target ? needs(ticket.status, target) : null;
 
   function confirmDelete() {
     startDelete(async () => {
@@ -119,8 +135,8 @@ export function TicketDetailView({
       toast.error("Wajib isi catatan alasan perubahan status.");
       return;
     }
-    if (target === "WAITING_PART" && !partNotes.trim()) {
-      toast.error("Isi catatan sparepart.");
+    if (req.diagnosisNotes && !diagnosisNotes.trim()) {
+      toast.error("Isi catatan diagnosa.");
       return;
     }
 
@@ -131,11 +147,61 @@ export function TicketDetailView({
           from: ticket.status,
           to: target,
           notes,
-          part_notes: req.partNotes ? partNotes : undefined,
+          diagnosis_notes: req.diagnosisNotes ? diagnosisNotes : undefined,
           qc_notes: req.qcNotes ? qcNotes : undefined,
         });
         toast.success(`Status → ${TICKET_STATUS_LABEL[target]}`);
         setTarget(null);
+        router.refresh();
+      } catch (e) {
+        toast.error((e as Error).message);
+      }
+    });
+  }
+
+  const isWorkbenchRole = role === "technician" || role === "owner";
+  const isFrontDeskRole = role === "admin" || role === "owner";
+  const canRequestPart =
+    isWorkbenchRole && PART_REQUEST_ELIGIBLE_STATUSES.includes(ticket.status);
+  const canMarkOrdered = isFrontDeskRole && ticket.part_status === "requested";
+  const canMarkArrived =
+    isFrontDeskRole && ticket.part_status === "ordered" && ticket.status === "WAITING_PART";
+
+  function submitPartRequest() {
+    if (!partRequestNote.trim()) {
+      toast.error("Sebutkan sparepart yang dibutuhkan.");
+      return;
+    }
+    startPartTransition(async () => {
+      try {
+        await requestSparepart(ticket.id, partRequestNote);
+        toast.success("Permintaan sparepart terkirim ke admin.");
+        setRequestingPart(false);
+        setPartRequestNote("");
+        router.refresh();
+      } catch (e) {
+        toast.error((e as Error).message);
+      }
+    });
+  }
+
+  function submitMarkOrdered() {
+    startPartTransition(async () => {
+      try {
+        await markPartOrdered(ticket.id);
+        toast.success('Status → "Menunggu sparepart".');
+        router.refresh();
+      } catch (e) {
+        toast.error((e as Error).message);
+      }
+    });
+  }
+
+  function submitMarkArrived() {
+    startPartTransition(async () => {
+      try {
+        await markPartArrived(ticket.id);
+        toast.success('Status → "Pemasangan sparepart". Teknisi sudah dinotifikasi.');
         router.refresh();
       } catch (e) {
         toast.error((e as Error).message);
@@ -177,6 +243,13 @@ export function TicketDetailView({
           <TicketStatusBadge status={ticket.status} />
           {mode === "admin" && (
             <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                render={<Link href={`/admin/tickets/${ticket.id}/print`} target="_blank" />}
+              >
+                <Printer className="size-3.5" /> Cetak Label
+              </Button>
               <Button variant="outline" size="sm" render={<Link href={`/admin/tickets/${ticket.id}/edit`} />}>
                 <Pencil className="size-3.5" /> Edit
               </Button>
@@ -230,8 +303,10 @@ export function TicketDetailView({
         {nextOptions.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             {role === "admin"
-              ? "Belum bisa diserahkan — status unit belum \"Siap Diambil\". Untuk koreksi status, hubungi owner."
-              : "Tidak ada transisi lanjutan dari status ini."}
+              ? 'Belum bisa diserahkan — status unit belum "Siap Diambil". Untuk koreksi status, hubungi owner.'
+              : ticket.status === "WAITING_PART"
+                ? "Menunggu admin memesan/menerima sparepart — belum ada aksi untuk teknisi di sini."
+                : "Tidak ada transisi lanjutan dari status ini."}
           </p>
         ) : (
           <div className="flex flex-wrap gap-2">
@@ -250,15 +325,15 @@ export function TicketDetailView({
 
         {target && req && (
           <div className="mt-1 flex flex-col gap-3 border-t pt-3">
-            {req.partNotes && (
+            {req.diagnosisNotes && (
               <Field>
-                <FieldLabel htmlFor="pn">Catatan sparepart</FieldLabel>
+                <FieldLabel htmlFor="dn">Catatan diagnosa (wajib)</FieldLabel>
                 <Textarea
-                  id="pn"
+                  id="dn"
                   rows={2}
-                  placeholder="Nama part, estimasi kedatangan, supplier…"
-                  value={partNotes}
-                  onChange={(e) => setPartNotes(e.target.value)}
+                  placeholder="Temuan diagnosa, penyebab kerusakan, rencana perbaikan…"
+                  value={diagnosisNotes}
+                  onChange={(e) => setDiagnosisNotes(e.target.value)}
                 />
               </Field>
             )}
@@ -311,6 +386,94 @@ export function TicketDetailView({
           </a>
         )}
       </section>
+
+      {/* Sparepart */}
+      {(canRequestPart || ticket.part_status !== "none") && (
+        <section className="flex flex-col gap-3 rounded-xl bg-card p-5 ring-1 ring-foreground/10">
+          <h2 className="flex items-center gap-1.5 text-sm font-semibold">
+            <Package className="size-4" /> Sparepart
+          </h2>
+
+          {ticket.part_status !== "none" && (
+            <div className="flex flex-col gap-1 text-sm">
+              <p>
+                Status: <strong>{PART_STATUS_LABEL[ticket.part_status]}</strong>
+              </p>
+              {ticket.part_notes && (
+                <p className="text-muted-foreground">{ticket.part_notes}</p>
+              )}
+            </div>
+          )}
+
+          {canMarkOrdered && (
+            <Button
+              size="sm"
+              className="w-fit"
+              onClick={submitMarkOrdered}
+              disabled={partPending}
+            >
+              {partPending ? <Loader2 className="animate-spin" /> : <Check />}
+              Tandai Sudah Dipesan
+            </Button>
+          )}
+
+          {canMarkArrived && (
+            <Button
+              size="sm"
+              className="w-fit"
+              onClick={submitMarkArrived}
+              disabled={partPending}
+            >
+              {partPending ? <Loader2 className="animate-spin" /> : <Check />}
+              Tandai Sparepart Tiba
+            </Button>
+          )}
+
+          {canRequestPart && !requestingPart && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-fit"
+              onClick={() => {
+                setRequestingPart(true);
+                setPartRequestNote(ticket.part_notes ?? "");
+              }}
+            >
+              <Package className="size-3.5" />
+              {ticket.part_status === "none" ? "Request Sparepart" : "Ajukan Ulang / Perbarui"}
+            </Button>
+          )}
+
+          {canRequestPart && requestingPart && (
+            <div className="flex flex-col gap-2 border-t pt-3">
+              <Field>
+                <FieldLabel htmlFor="prn">Sparepart yang dibutuhkan</FieldLabel>
+                <Textarea
+                  id="prn"
+                  rows={2}
+                  placeholder="Nama part, spesifikasi, catatan lain…"
+                  value={partRequestNote}
+                  onChange={(e) => setPartRequestNote(e.target.value)}
+                />
+              </Field>
+              <div className="flex gap-2">
+                <Button size="sm" onClick={submitPartRequest} disabled={partPending}>
+                  {partPending ? <Loader2 className="animate-spin" /> : <Check />}
+                  Kirim ke Admin
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setRequestingPart(false)}
+                  disabled={partPending}
+                >
+                  Batal
+                </Button>
+              </div>
+            </div>
+          )}
+        </section>
+      )}
 
       {/* Detail unit */}
       <section className="grid gap-4 rounded-xl bg-card p-5 text-sm ring-1 ring-foreground/10 sm:grid-cols-2">
@@ -371,10 +534,10 @@ export function TicketDetailView({
           <p className="font-semibold">Kelengkapan</p>
           <p className="text-muted-foreground">{accessoriesSummary(acc)}</p>
         </div>
-        {ticket.part_notes && (
+        {ticket.diagnosis_notes && (
           <div>
-            <p className="font-semibold">Catatan sparepart</p>
-            <p className="text-muted-foreground">{ticket.part_notes}</p>
+            <p className="font-semibold">Catatan diagnosa</p>
+            <p className="text-muted-foreground">{ticket.diagnosis_notes}</p>
           </div>
         )}
         {ticket.qc_notes && (
@@ -393,7 +556,7 @@ export function TicketDetailView({
               <span className="mt-1 size-2 shrink-0 rounded-full bg-muted-foreground" />
               <div>
                 <p>
-                  {log.previous_status
+                  {log.previous_status && log.previous_status !== log.new_status
                     ? `${TICKET_STATUS_LABEL[log.previous_status]} → `
                     : ""}
                   <strong>{TICKET_STATUS_LABEL[log.new_status]}</strong>

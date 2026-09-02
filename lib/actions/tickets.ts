@@ -48,7 +48,7 @@ export type StatusChange = {
   from: TicketStatus;
   to: TicketStatus;
   notes?: string;
-  part_notes?: string;
+  diagnosis_notes?: string;
   qc_notes?: string;
 };
 
@@ -93,7 +93,8 @@ export async function updateTicketStatus(input: StatusChange) {
   }
 
   const patch: TicketUpdate = { status: input.to };
-  if (input.part_notes !== undefined) patch.part_notes = input.part_notes.trim() || null;
+  if (input.diagnosis_notes !== undefined)
+    patch.diagnosis_notes = input.diagnosis_notes.trim() || null;
   if (input.qc_notes !== undefined) patch.qc_notes = input.qc_notes.trim() || null;
 
   const { data: updated, error } = await supabase

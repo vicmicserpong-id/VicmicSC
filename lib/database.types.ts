@@ -158,12 +158,14 @@ export type Database = {
           customer_phone: string
           customer_phone_alt: string | null
           customer_signature_url: string | null
+          diagnosis_notes: string | null
           estimated_cost: number
           final_cost: number
           id: string
           intake_by: string
           mtm_number: string | null
           part_notes: string | null
+          part_status: Database["public"]["Enums"]["part_request_status"]
           photos_url: string[] | null
           physical_condition_tags: string[] | null
           physical_notes: string | null
@@ -189,12 +191,14 @@ export type Database = {
           customer_phone: string
           customer_phone_alt?: string | null
           customer_signature_url?: string | null
+          diagnosis_notes?: string | null
           estimated_cost?: number
           final_cost?: number
           id?: string
           intake_by: string
           mtm_number?: string | null
           part_notes?: string | null
+          part_status?: Database["public"]["Enums"]["part_request_status"]
           photos_url?: string[] | null
           physical_condition_tags?: string[] | null
           physical_notes?: string | null
@@ -220,12 +224,14 @@ export type Database = {
           customer_phone?: string
           customer_phone_alt?: string | null
           customer_signature_url?: string | null
+          diagnosis_notes?: string | null
           estimated_cost?: number
           final_cost?: number
           id?: string
           intake_by?: string
           mtm_number?: string | null
           part_notes?: string | null
+          part_status?: Database["public"]["Enums"]["part_request_status"]
           photos_url?: string[] | null
           physical_condition_tags?: string[] | null
           physical_notes?: string | null
@@ -390,12 +396,14 @@ export type Database = {
           customer_phone: string
           customer_phone_alt: string | null
           customer_signature_url: string | null
+          diagnosis_notes: string | null
           estimated_cost: number
           final_cost: number
           id: string
           intake_by: string
           mtm_number: string | null
           part_notes: string | null
+          part_status: Database["public"]["Enums"]["part_request_status"]
           photos_url: string[] | null
           physical_condition_tags: string[] | null
           physical_notes: string | null
@@ -419,6 +427,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "technician" | "owner"
+      part_request_status: "none" | "requested" | "ordered" | "arrived"
       queue_status_enum: "waiting" | "serving" | "completed" | "canceled"
       service_ticket_status:
         | "INTAKE"
@@ -561,6 +570,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "technician", "owner"],
+      part_request_status: ["none", "requested", "ordered", "arrived"],
       queue_status_enum: ["waiting", "serving", "completed", "canceled"],
       service_ticket_status: [
         "INTAKE",

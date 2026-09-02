@@ -93,40 +93,48 @@ update public.profiles set role = 'technician' where id = '<uuid>';
 /admin/tickets/[id]       Detail tiket — ubah status (lihat "Alur status servis" di
                           bawah untuk batasan per role), edit data / hapus tiket
 /admin/tickets/[id]/edit  Koreksi data tiket (salah input saat Servis Baru) — admin/owner
+/admin/tickets/[id]/print Cetak label QR (thermal 58mm) — admin/owner
 /admin/reports            Laporan — dashboard analitik + ekspor/kirim rekap bulanan — admin/owner
 /admin/customers          Pelanggan — bank data pelanggan + ekspor CSV — admin/owner
 /admin/staff              Kelola staf (owner) + reset data uji coba
 /tech/workbench           Dashboard teknisi + Tarik Tiket FIFO (tiket yg sudah ditarik saja
                           yang terlihat — tiket baru sengaja disembunyikan, lihat di bawah)
 /tech/workbench/[id]      Detail tiket — teknisi mengikuti alur status (tak bisa mundur)
+/t/[ticket_number]        Shortlink hasil scan QR label — redirect ke halaman detail yang
+                          benar sesuai role yang scan (teknisi/admin/owner)
 /api/cron/daily-report    Rekap harian (cron)
 /api/cron/monthly-report  Rekap bulanan + lampiran CSV unit selesai (cron)
 ```
 
 ## Alur status servis
 
-`INTAKE → DIAGNOSING → {WAITING_APPROVAL | WAITING_PART → PART_INSTALLING | IN_REPAIR}
-→ QC_TESTING → READY_FOR_PICKUP → CLOSED` (atau `CANCELLED` dari beberapa titik).
-Transisi yang diizinkan didefinisikan di `lib/constants.ts` → `TICKET_STATUS_FLOW`.
+`INTAKE → DIAGNOSING → {WAITING_APPROVAL | IN_REPAIR} → [WAITING_PART → PART_INSTALLING] →
+QC_TESTING → READY_FOR_PICKUP → CLOSED` (atau `CANCELLED` dari beberapa titik). Transisi yang
+diizinkan didefinisikan di `lib/constants.ts` → `TICKET_STATUS_FLOW`.
 
 Server action tunggal `lib/actions/tickets.ts` → `updateTicketStatus()` menegakkan ini
 berdasarkan role pemanggil — **tiga tingkat**, makin ke atas makin longgar:
 - **Teknisi**: hanya boleh mengikuti `TICKET_STATUS_FLOW` — alur MAJU murni, tanpa jalur
-  mundur/lateral sama sekali (mis. `QC_TESTING` tidak bisa balik ke `IN_REPAIR`). Semua
-  teknisi bisa melihat & mengubah **semua** tiket yang sudah ditarik (bukan cuma yang
-  mereka tarik sendiri), supaya unit tidak macet kalau teknisi yang menarik sedang libur.
+  mundur/lateral sama sekali (mis. `QC_TESTING` tidak bisa balik ke `IN_REPAIR`), dan **tidak**
+  termasuk `WAITING_PART`/`PART_INSTALLING` (lihat alur sparepart di bawah — itu wewenang
+  admin). Semua teknisi bisa melihat & mengubah **semua** tiket yang sudah ditarik (bukan cuma
+  yang mereka tarik sendiri), supaya unit tidak macet kalau teknisi yang menarik sedang libur.
   Tiket **baru** (`INTAKE`, belum ditarik siapa pun) sengaja **tidak muncul** di daftar
   Workbench — supaya teknisi tidak bisa pilih-pilih dan urutan antrean tetap terjaga.
   Satu-satunya jalan masuk adalah tombol "Tarik Tiket Berikutnya (FIFO)", yang mengunci
   tiket `INTAKE` tertua (RPC `pull_next_ticket`, `FOR UPDATE SKIP LOCKED`) dan langsung
   menandainya `DIAGNOSING` untuk teknisi tersebut. Server action `updateTicketStatus`
   menolak setiap upaya teknisi mengubah status langsung dari `INTAKE` (harus lewat FIFO).
+  Meninggalkan status `DIAGNOSING` (ke tujuan mana pun) mewajibkan **catatan diagnosa**
+  (`diagnosis_notes`).
 - **Admin**: **hanya** boleh mengubah `READY_FOR_PICKUP` → `CLOSED` (menyerahkan unit ke
-  pelanggan) — tidak bisa mengubah status bolak-balik di titik lain sama sekali. Ini otomatis
-  menutup antrean pengambilan terkait juga (sama seperti lewat `/admin/pickup`).
-- **Owner**: bebas pindah ke status apa pun (mis. mengoreksi kesalahan atau membalik
-  status), TAPI wajib mengisi catatan alasan perubahan. Ini satu-satunya jalan resmi untuk
-  koreksi status di luar alur normal.
+  pelanggan) lewat panel status umum — tidak bisa mengubah status bolak-balik di titik lain
+  sama sekali. Ini otomatis menutup antrean pengambilan terkait juga (sama seperti lewat
+  `/admin/pickup`). Admin/owner ADA dua transisi tambahan di luar panel ini, khusus lewat
+  alur sparepart (lihat di bawah).
+- **Owner**: bebas pindah ke status apa pun lewat panel status umum (mis. mengoreksi
+  kesalahan atau membalik status), TAPI wajib mengisi catatan alasan perubahan. Ini
+  satu-satunya jalan resmi untuk koreksi status di luar alur normal.
 
 Setiap perubahan status selalu tercatat di `service_ticket_logs` (siapa, dari status apa,
 ke status apa, catatan, waktu) dan ditampilkan di riwayat tiket ("Riwayat") — tidak bisa
@@ -141,6 +149,35 @@ role teknisi (`lib/auth.ts` → `requireFrontDesk()`).
 
 Aplikasi ini murni untuk **alur kerja (workflow)** — pelacakan biaya/pembayaran per unit
 tidak lagi ditampilkan di intake, workbench, maupun pengambilan.
+
+## Alur permintaan sparepart
+
+Server actions di `lib/actions/spareparts.ts` (gerbang `lib/auth.ts` →
+`requireWorkbench()`/`requireFrontDesk()`), melacak status di kolom baru
+`service_tickets.part_status` (`none → requested → ordered → arrived`):
+
+1. **Teknisi/owner** mengklik "Request Sparepart" di halaman detail tiket (muncul saat status
+   `DIAGNOSING`/`WAITING_APPROVAL`/`IN_REPAIR`/`PART_INSTALLING`) → `requestSparepart()`.
+   Ini **tidak mengubah status tiket** — hanya menyimpan kebutuhan part (`part_notes`) +
+   notifikasi ke admin/owner ("Sparepart diminta").
+2. **Admin/owner** menekan "Tandai Sudah Dipesan" setelah memesan part →
+   `markPartOrdered()` → status tiket jadi `WAITING_PART`.
+3. Begitu part tiba, **admin/owner** menekan "Tandai Sparepart Tiba" → `markPartArrived()` →
+   status tiket jadi `PART_INSTALLING`, teknisi dinotifikasi ("Sparepart tiba").
+4. **Teknisi** melanjutkan dari `PART_INSTALLING` seperti biasa (→ `QC_TESTING` → ...).
+
+## QR code & cetak label thermal
+
+Tiap tiket punya satu QR (halaman "Cetak Label" di detail tiket, admin/owner) yang berisi
+tautan `/t/{nomor_tiket}` — di-scan siapa pun (teknisi atau admin/owner) langsung diarahkan ke
+halaman detail tiket yang sesuai perannya, tanpa perlu cari manual di daftar. Berguna ditempel
+di unit fisiknya supaya gampang dicek ulang statusnya.
+
+Halaman cetak (`app/(admin)/admin/tickets/[id]/print/`) diset untuk label thermal continuous
+**58mm** (`@page { size: 58mm auto }`) — asumsi printer POS/label kecil yang umum dipakai toko
+di Indonesia. Kalau printer Kakak beda ukuran (mis. 80mm) atau berupa printer label khusus
+(Bluetooth, app sendiri seperti Niimbot/Phomemo — bukan printer biasa lewat driver OS), kabari
+saya modelnya supaya disesuaikan.
 
 ## Laporan & ekspor (`/admin/reports`, admin/owner)
 
@@ -168,11 +205,18 @@ realtime lewat Supabase Realtime + badge jumlah belum dibaca. Event dibuat otoma
 **trigger database** (`supabase/migrations/20260903000000_notifications.sql`), bukan kode
 aplikasi — jadi selalu konsisten apa pun jalur yang memicunya:
 
-| Event | Target | Trigger |
+| Event | Target | Sumber |
 |---|---|---|
-| Unit baru diterima | Teknisi + owner | `trg_notify_new_ticket` (insert `service_tickets`) |
-| Unit siap diambil | Admin + owner | `trg_notify_ticket_ready` (update status → `READY_FOR_PICKUP`) |
-| Antrean baru masuk | Admin + owner | `trg_notify_new_queue` (insert `queues`) |
+| Unit baru diterima | Teknisi + owner | Trigger DB `trg_notify_new_ticket` (insert `service_tickets`) |
+| Unit siap diambil | Admin + owner | Trigger DB `trg_notify_ticket_ready` (update status → `READY_FOR_PICKUP`) |
+| Antrean baru masuk | Admin + owner | Trigger DB `trg_notify_new_queue` (insert `queues`) |
+| Sparepart diminta | Admin + owner | Server action `requestSparepart()` |
+| Sparepart tiba | Teknisi + owner | Server action `markPartArrived()` |
+
+Dua yang terakhir dibuat dari Server Action (bukan trigger), karena bagian dari alur
+sparepart di bawah — insert-nya lewat policy `"Staff create notifications"` (insert,
+`to authenticated with check (true)` — konsisten dengan model RLS "terbuka utk staf,
+ditegakkan di level aplikasi" yang dipakai di semua tabel lain).
 
 Status "sudah dibaca" per staf disimpan di `notification_reads` (satu baris per
 notifikasi × user), jadi tiap orang punya status baca sendiri-sendiri meski memakai

@@ -128,3 +128,16 @@
     @apply font-sans;
   }
 }
+
+/* Sembunyikan chrome situs (header/nav staf) & elemen ber-.no-print saat print
+   (mis. halaman "Cetak Label"). */
+@media print {
+  header,
+  .no-print {
+    display: none !important;
+  }
+  main {
+    padding: 0 !important;
+    max-width: none !important;
+  }
+}
