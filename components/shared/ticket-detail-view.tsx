@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { TicketStatusBadge } from "@/components/shared/status-badge";
+import { TicketProgress } from "@/components/shared/ticket-progress";
 import {
   Dialog,
   DialogContent,
@@ -97,6 +98,10 @@ export function TicketDetailView({
   const [partPending, startPartTransition] = useTransition();
 
   const acc = ticket.accessories as unknown as AccessoriesShape;
+  const visitedStatuses = new Set<TicketStatus>([
+    ticket.status,
+    ...logs.map((l) => l.new_status),
+  ]);
   // Owner: bebas pindah ke status apa pun. Admin: cuma boleh menyerahkan unit
   // (Siap Diambil → Selesai) — tidak ada opsi lain. Teknisi: alur maju TICKET_STATUS_FLOW.
   const nextOptions =
@@ -201,7 +206,7 @@ export function TicketDetailView({
     startPartTransition(async () => {
       try {
         await markPartArrived(ticket.id);
-        toast.success('Status → "Pemasangan sparepart". Teknisi sudah dinotifikasi.');
+        toast.success('Status → "Part tiba". Teknisi sudah dinotifikasi untuk lanjut memasang.');
         router.refresh();
       } catch (e) {
         toast.error((e as Error).message);
@@ -265,6 +270,8 @@ export function TicketDetailView({
           )}
         </div>
       </div>
+
+      <TicketProgress status={ticket.status} visited={visitedStatuses} />
 
       {mode === "admin" && (
         <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>

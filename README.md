@@ -108,16 +108,19 @@ update public.profiles set role = 'technician' where id = '<uuid>';
 
 ## Alur status servis
 
-`INTAKE → DIAGNOSING → {WAITING_APPROVAL | IN_REPAIR} → [WAITING_PART → PART_INSTALLING] →
-QC_TESTING → READY_FOR_PICKUP → CLOSED` (atau `CANCELLED` dari beberapa titik). Transisi yang
-diizinkan didefinisikan di `lib/constants.ts` → `TICKET_STATUS_FLOW`.
+`INTAKE → DIAGNOSING → {WAITING_APPROVAL | IN_REPAIR} → [WAITING_PART → PART_ARRIVED →
+PART_INSTALLING] → QC_TESTING → READY_FOR_PICKUP → CLOSED` (atau `CANCELLED` dari beberapa
+titik). Transisi yang diizinkan didefinisikan di `lib/constants.ts` → `TICKET_STATUS_FLOW`.
 
 Server action tunggal `lib/actions/tickets.ts` → `updateTicketStatus()` menegakkan ini
 berdasarkan role pemanggil — **tiga tingkat**, makin ke atas makin longgar:
 - **Teknisi**: hanya boleh mengikuti `TICKET_STATUS_FLOW` — alur MAJU murni, tanpa jalur
-  mundur/lateral sama sekali (mis. `QC_TESTING` tidak bisa balik ke `IN_REPAIR`), dan **tidak**
-  termasuk `WAITING_PART`/`PART_INSTALLING` (lihat alur sparepart di bawah — itu wewenang
-  admin). Semua teknisi bisa melihat & mengubah **semua** tiket yang sudah ditarik (bukan cuma
+  mundur/lateral sama sekali (mis. `QC_TESTING` tidak bisa balik ke `IN_REPAIR`). `WAITING_PART`
+  **bukan** wewenang teknisi (lihat alur sparepart di bawah — itu wewenang admin), tapi begitu
+  admin menandai part tiba (`PART_ARRIVED`), teknisi-lah yang pindah ke `PART_INSTALLING` saat
+  benar-benar mulai memasang — sengaja dipisah dari `PART_ARRIVED` supaya tidak ada teknisi lain
+  yang salah kira unit sudah ditangani padahal partnya baru sampai. Semua teknisi bisa melihat &
+  mengubah **semua** tiket yang sudah ditarik (bukan cuma
   yang mereka tarik sendiri), supaya unit tidak macet kalau teknisi yang menarik sedang libur.
   Tiket **baru** (`INTAKE`, belum ditarik siapa pun) sengaja **tidak muncul** di daftar
   Workbench — supaya teknisi tidak bisa pilih-pilih dan urutan antrean tetap terjaga.
@@ -163,8 +166,12 @@ Server actions di `lib/actions/spareparts.ts` (gerbang `lib/auth.ts` →
 2. **Admin/owner** menekan "Tandai Sudah Dipesan" setelah memesan part →
    `markPartOrdered()` → status tiket jadi `WAITING_PART`.
 3. Begitu part tiba, **admin/owner** menekan "Tandai Sparepart Tiba" → `markPartArrived()` →
-   status tiket jadi `PART_INSTALLING`, teknisi dinotifikasi ("Sparepart tiba").
-4. **Teknisi** melanjutkan dari `PART_INSTALLING` seperti biasa (→ `QC_TESTING` → ...).
+   status tiket jadi `PART_ARRIVED` ("Part tiba"), teknisi dinotifikasi. **Sengaja berhenti di
+   sini, tidak langsung `PART_INSTALLING`** — supaya tidak ada teknisi lain yang salah kira unit
+   sudah mulai/selesai dipasang padahal partnya baru sampai.
+4. **Teknisi** sendiri yang menekan tombol status "Pemasangan sparepart" di panel Ubah Status
+   begitu benar-benar mulai memasang (`PART_ARRIVED → PART_INSTALLING`, lewat
+   `TICKET_STATUS_FLOW` biasa) → lanjut seperti biasa (→ `QC_TESTING` → ...).
 
 ## QR code & cetak label thermal
 

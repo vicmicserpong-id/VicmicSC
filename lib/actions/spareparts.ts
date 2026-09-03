@@ -95,7 +95,14 @@ export async function markPartOrdered(ticketId: string) {
   revalidateTicketPaths(ticketId);
 }
 
-/** Admin/owner menandai sparepart sudah tiba -> status jadi "Pemasangan sparepart", notif teknisi. */
+/**
+ * Admin/owner menandai sparepart sudah tiba -> status jadi PART_ARRIVED
+ * ("Part tiba"), notif teknisi. SENGAJA berhenti di sini, tidak langsung
+ * PART_INSTALLING — supaya tidak ada teknisi lain yang salah kira unit
+ * sudah mulai/selesai dipasang padahal partnya baru sampai. Teknisi sendiri
+ * yang pindah ke PART_INSTALLING lewat updateTicketStatus begitu benar-benar
+ * mulai memasang (lihat TICKET_STATUS_FLOW).
+ */
 export async function markPartArrived(ticketId: string) {
   const staff = await requireFrontDesk();
   const supabase = await createClient();
@@ -112,7 +119,7 @@ export async function markPartArrived(ticketId: string) {
 
   const { error, data: updated } = await supabase
     .from("service_tickets")
-    .update({ status: "PART_INSTALLING", part_status: "arrived" })
+    .update({ status: "PART_ARRIVED", part_status: "arrived" })
     .eq("id", ticketId)
     .eq("status", "WAITING_PART")
     .select("id")
@@ -123,16 +130,16 @@ export async function markPartArrived(ticketId: string) {
   await supabase.from("service_ticket_logs").insert({
     ticket_id: ticketId,
     previous_status: "WAITING_PART",
-    new_status: "PART_INSTALLING",
+    new_status: "PART_ARRIVED",
     changed_by: staff.id,
-    notes: "Sparepart sudah tiba, siap dipasang.",
+    notes: "Sparepart sudah tiba.",
   });
 
   await supabase.from("notifications").insert({
     target_roles: ["technician", "owner"],
     type: "part_arrived",
     title: "Sparepart tiba",
-    body: `${ticket.ticket_number} — ${ticket.product_description}`,
+    body: `${ticket.ticket_number} — ${ticket.product_description}. Siap dipasang.`,
     link: `/tech/workbench/${ticketId}`,
     ticket_id: ticketId,
   });

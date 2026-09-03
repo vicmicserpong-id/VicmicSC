@@ -41,6 +41,7 @@ export const TICKET_STATUS_LABEL: Record<TicketStatus, string> = {
   DIAGNOSING: "Diagnosa",
   WAITING_APPROVAL: "Menunggu persetujuan",
   WAITING_PART: "Menunggu sparepart",
+  PART_ARRIVED: "Part tiba",
   PART_INSTALLING: "Pemasangan sparepart",
   IN_REPAIR: "Sedang diperbaiki",
   QC_TESTING: "Uji QC",
@@ -56,17 +57,21 @@ export const TICKET_STATUS_LABEL: Record<TicketStatus, string> = {
  * lib/actions/tickets.ts -> updateTicketStatus). Role admin lebih sempit
  * lagi dari peta ini: cuma boleh READY_FOR_PICKUP -> CLOSED, plus dua
  * transisi khusus alur sparepart (lib/actions/spareparts.ts) yang tidak
- * lewat peta ini sama sekali: * -> WAITING_PART dan WAITING_PART -> PART_INSTALLING.
+ * lewat peta ini sama sekali: * -> WAITING_PART dan WAITING_PART -> PART_ARRIVED.
  *
- * WAITING_PART bukan lagi wewenang teknisi (kosong di bawah) — teknisi cuma
- * bisa MENGAJUKAN permintaan sparepart (requestSparepart), lalu admin yang
- * memindahkan status begitu sparepart dipesan/tiba.
+ * WAITING_PART bukan wewenang teknisi (kosong di bawah) — teknisi cuma bisa
+ * MENGAJUKAN permintaan sparepart (requestSparepart), lalu admin yang
+ * memesan & menandai tiba. Begitu tiba (PART_ARRIVED), giliran teknisi lagi
+ * yang pindah ke PART_INSTALLING begitu benar-benar mulai memasang — supaya
+ * tidak ada teknisi lain yang salah kira unit sudah ditangani padahal cuma
+ * partnya yang baru sampai.
  */
 export const TICKET_STATUS_FLOW: Record<TicketStatus, TicketStatus[]> = {
   INTAKE: ["DIAGNOSING", "CANCELLED"],
   DIAGNOSING: ["WAITING_APPROVAL", "IN_REPAIR", "CANCELLED"],
   WAITING_APPROVAL: ["IN_REPAIR", "CANCELLED"],
   WAITING_PART: [],
+  PART_ARRIVED: ["PART_INSTALLING", "CANCELLED"],
   PART_INSTALLING: ["QC_TESTING", "CANCELLED"],
   IN_REPAIR: ["QC_TESTING", "CANCELLED"],
   QC_TESTING: ["READY_FOR_PICKUP", "CANCELLED"],

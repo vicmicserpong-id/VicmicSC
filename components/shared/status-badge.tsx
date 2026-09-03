@@ -12,6 +12,7 @@ const TICKET_TONE: Record<TicketStatus, string> = {
   DIAGNOSING: "bg-blue-100 text-blue-700",
   WAITING_APPROVAL: "bg-amber-100 text-amber-800",
   WAITING_PART: "bg-amber-100 text-amber-800",
+  PART_ARRIVED: "bg-cyan-100 text-cyan-700",
   PART_INSTALLING: "bg-indigo-100 text-indigo-700",
   IN_REPAIR: "bg-blue-100 text-blue-700",
   QC_TESTING: "bg-violet-100 text-violet-700",
