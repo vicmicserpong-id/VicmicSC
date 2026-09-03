@@ -59,6 +59,60 @@ export async function requestSparepart(ticketId: string, note: string) {
   revalidateTicketPaths(ticketId);
 }
 
+/**
+ * Teknisi/owner meng-eskalasi tiket yang sedang dipasang sparepart-nya kembali
+ * ke "Menunggu sparepart" — dipakai kalau di tengah pemasangan ketemu masalah
+ * lebih besar / part kurang / part tidak cocok. Status PART_INSTALLING →
+ * WAITING_PART, permintaan sparepart dibuka lagi (part_status = requested),
+ * admin dinotifikasi.
+ */
+export async function escalateForPart(ticketId: string, note: string) {
+  const staff = await requireWorkbench();
+  if (!note.trim()) {
+    throw new Error("Jelaskan alasan eskalasi / sparepart tambahan yang dibutuhkan.");
+  }
+
+  const supabase = await createClient();
+  const { data: ticket, error: readErr } = await supabase
+    .from("service_tickets")
+    .select("id, ticket_number, status")
+    .eq("id", ticketId)
+    .single();
+  if (readErr || !ticket) throw new Error("Tiket tidak ditemukan.");
+  if (ticket.status !== "PART_INSTALLING") {
+    throw new Error('Eskalasi hanya bisa dari status "Pemasangan sparepart".');
+  }
+
+  const { error, data: updated } = await supabase
+    .from("service_tickets")
+    .update({ status: "WAITING_PART", part_status: "requested", part_notes: note.trim() })
+    .eq("id", ticketId)
+    .eq("status", "PART_INSTALLING")
+    .select("id")
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!updated) throw new Error("Status tiket sudah berubah. Muat ulang halaman.");
+
+  await supabase.from("service_ticket_logs").insert({
+    ticket_id: ticketId,
+    previous_status: "PART_INSTALLING",
+    new_status: "WAITING_PART",
+    changed_by: staff.id,
+    notes: `Eskalasi: ${note.trim()}`,
+  });
+
+  await supabase.from("notifications").insert({
+    target_roles: ["admin", "owner"],
+    type: "part_escalated",
+    title: "Eskalasi sparepart",
+    body: `${ticket.ticket_number} — ${note.trim()}`,
+    link: `/admin/tickets/${ticketId}`,
+    ticket_id: ticketId,
+  });
+
+  revalidateTicketPaths(ticketId);
+}
+
 /** Admin/owner menandai sparepart sudah dipesan -> status jadi "Menunggu sparepart". */
 export async function markPartOrdered(ticketId: string) {
   const staff = await requireFrontDesk();

@@ -13,6 +13,7 @@ import {
   Trash2,
   Package,
   Printer,
+  AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -43,7 +44,12 @@ import {
 import { formatDateTimeWIB, waLink } from "@/lib/format";
 import type { Database } from "@/lib/database.types";
 import { updateTicketStatus } from "@/lib/actions/tickets";
-import { requestSparepart, markPartOrdered, markPartArrived } from "@/lib/actions/spareparts";
+import {
+  requestSparepart,
+  markPartOrdered,
+  markPartArrived,
+  escalateForPart,
+} from "@/lib/actions/spareparts";
 import { deleteTicket } from "@/app/(admin)/admin/tickets/[id]/data-actions";
 
 type Ticket = Database["public"]["Tables"]["service_tickets"]["Row"];
@@ -96,6 +102,8 @@ export function TicketDetailView({
   const [requestingPart, setRequestingPart] = useState(false);
   const [partRequestNote, setPartRequestNote] = useState("");
   const [partPending, startPartTransition] = useTransition();
+  const [escalating, setEscalating] = useState(false);
+  const [escalateNote, setEscalateNote] = useState("");
 
   const acc = ticket.accessories as unknown as AccessoriesShape;
   const visitedStatuses = new Set<TicketStatus>([
@@ -171,6 +179,7 @@ export function TicketDetailView({
   const canMarkOrdered = isFrontDeskRole && ticket.part_status === "requested";
   const canMarkArrived =
     isFrontDeskRole && ticket.part_status === "ordered" && ticket.status === "WAITING_PART";
+  const canEscalateForPart = isWorkbenchRole && ticket.status === "PART_INSTALLING";
 
   function submitPartRequest() {
     if (!partRequestNote.trim()) {
@@ -207,6 +216,24 @@ export function TicketDetailView({
       try {
         await markPartArrived(ticket.id);
         toast.success('Status → "Part tiba". Teknisi sudah dinotifikasi untuk lanjut memasang.');
+        router.refresh();
+      } catch (e) {
+        toast.error((e as Error).message);
+      }
+    });
+  }
+
+  function submitEscalate() {
+    if (!escalateNote.trim()) {
+      toast.error("Isi alasan eskalasi.");
+      return;
+    }
+    startPartTransition(async () => {
+      try {
+        await escalateForPart(ticket.id, escalateNote);
+        toast.success('Tiket dikembalikan ke "Menunggu sparepart". Admin sudah dinotifikasi.');
+        setEscalating(false);
+        setEscalateNote("");
         router.refresh();
       } catch (e) {
         toast.error((e as Error).message);
@@ -376,6 +403,53 @@ export function TicketDetailView({
                 Batal
               </Button>
             </div>
+          </div>
+        )}
+
+        {canEscalateForPart && (
+          <div className="mt-1 flex flex-col gap-2 border-t pt-3">
+            {!escalating ? (
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-fit border-amber-500 text-amber-700 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-950/30"
+                onClick={() => {
+                  setEscalating(true);
+                  setEscalateNote("");
+                }}
+              >
+                <AlertTriangle className="size-3.5" /> Eskalasi → Menunggu Sparepart
+              </Button>
+            ) : (
+              <>
+                <Field>
+                  <FieldLabel htmlFor="esc">
+                    Alasan eskalasi / sparepart tambahan (wajib)
+                  </FieldLabel>
+                  <Textarea
+                    id="esc"
+                    rows={2}
+                    placeholder="Mis. ketemu kerusakan lain, part kurang / tidak cocok…"
+                    value={escalateNote}
+                    onChange={(e) => setEscalateNote(e.target.value)}
+                  />
+                </Field>
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={submitEscalate} disabled={partPending}>
+                    {partPending ? <Loader2 className="animate-spin" /> : <AlertTriangle className="size-3.5" />}
+                    Konfirmasi Eskalasi
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setEscalating(false)}
+                    disabled={partPending}
+                  >
+                    Batal
+                  </Button>
+                </div>
+              </>
+            )}
           </div>
         )}
 
