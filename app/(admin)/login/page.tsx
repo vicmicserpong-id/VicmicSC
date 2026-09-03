@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Field, FieldLabel } from "@/components/ui/field";
+import { PasswordInput } from "@/components/shared/password-input";
 import { createClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
@@ -60,9 +61,8 @@ export default function LoginPage() {
         </Field>
         <Field>
           <FieldLabel htmlFor="password">Password</FieldLabel>
-          <Input
+          <PasswordInput
             id="password"
-            type="password"
             autoComplete="current-password"
             required
             value={password}

@@ -4,6 +4,7 @@ import { LogOut } from "lucide-react";
 
 import { StaffNav } from "@/components/shared/staff-nav";
 import { NotificationBell } from "@/components/shared/notification-bell";
+import { ChangePassword } from "@/components/shared/change-password";
 import { Button } from "@/components/ui/button";
 import { ROLE_LABEL, type AppRole } from "@/lib/constants";
 import type { NotificationItem } from "@/lib/notifications";
@@ -59,6 +60,7 @@ export function StaffShell({
               <p className="text-sm font-medium">{name}</p>
               <p className="text-xs text-muted-foreground">{ROLE_LABEL[role]}</p>
             </div>
+            <ChangePassword />
             <form action="/auth/signout" method="post">
               <Button type="submit" variant="outline" size="sm">
                 <LogOut className="size-3.5" /> Keluar
