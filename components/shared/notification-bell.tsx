@@ -71,12 +71,12 @@ export function NotificationBell({
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="relative grid size-8 place-items-center rounded-lg hover:bg-muted/50"
+        className="relative grid size-9 place-items-center rounded-lg hover:bg-muted/50"
         aria-label="Notifikasi"
       >
         <Bell className="size-4" />
         {unreadCount > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 grid size-4 place-items-center rounded-full bg-destructive px-0.5 text-[10px] font-medium leading-none text-white">
+          <span className="absolute top-1 right-1 grid size-4 place-items-center rounded-full bg-destructive px-0.5 text-[10px] font-medium leading-none text-white">
             {unreadCount > 9 ? "9+" : unreadCount}
           </span>
         )}
@@ -85,7 +85,7 @@ export function NotificationBell({
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-10 z-50 flex max-h-96 w-80 flex-col overflow-hidden rounded-xl bg-popover ring-1 ring-foreground/10 shadow-lg">
+          <div className="fixed inset-x-3 top-[6.5rem] z-50 flex max-h-[70vh] flex-col overflow-hidden rounded-xl bg-popover ring-1 ring-foreground/10 shadow-lg md:absolute md:inset-x-auto md:right-0 md:top-11 md:max-h-96 md:w-80">
             <div className="flex items-center justify-between border-b px-3 py-2">
               <span className="text-sm font-semibold">Notifikasi</span>
               {unreadCount > 0 && (
