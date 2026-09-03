@@ -1,0 +1,551 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Panduan Tim Vicmic Service</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..48,500;12..48,600;12..48,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+  :root {
+    --ground: #ffffff;
+    --surface: #ffffff;
+    --surface-2: #f4f6f8;
+    --ink: #141a22;
+    --ink-soft: #333c48;
+    --muted: #5c6675;
+    --hairline: #dde2e8;
+    --hairline-strong: #c7cdd6;
+    --accent: #1b3a7a;
+    --link: #1f4d94;
+    --c-wait: #8a5100;
+    --c-wait-bg: #f4e6ce;
+    --c-active: #1a45c4;
+    --c-active-bg: #dee6fb;
+    --c-part: #0c6377;
+    --c-part-bg: #d3ecf1;
+    --c-done: #0d6250;
+    --c-done-bg: #d3eae2;
+    --c-stop: #a51c3d;
+    --c-stop-bg: #f4dae1;
+    --shadow: none;
+    --measure: 66ch;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body {
+    margin: 0;
+    background: #fff;
+    color: var(--ink);
+    font-family: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-size: 14.5px;
+    line-height: 1.58;
+    -webkit-font-smoothing: antialiased;
+  }
+  @page { size: A4; margin: 16mm 15mm 18mm; }
+
+  .wrap { max-width: 800px; margin: 0 auto; padding: 0 24px 40px; }
+
+  header.masthead { padding: 8px 0 20px; border-bottom: 2px solid var(--ink); margin-bottom: 26px; }
+  .eyebrow {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: .72rem; font-weight: 600; letter-spacing: .18em;
+    text-transform: uppercase; color: var(--muted); margin: 0 0 .8rem;
+  }
+  h1.title {
+    font-family: "Bricolage Grotesque", "IBM Plex Sans", sans-serif;
+    font-weight: 700; font-size: 2.3rem; line-height: 1.05;
+    letter-spacing: -.02em; margin: 0 0 .7rem; max-width: 20ch;
+  }
+  .lede { font-size: 1.02rem; color: var(--ink-soft); max-width: 58ch; margin: 0 0 1.2rem; }
+  .meta-row {
+    display: flex; flex-wrap: wrap; gap: .45rem .6rem;
+    font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: .76rem; color: var(--muted);
+  }
+  .meta-row span { border: 1px solid var(--hairline-strong); border-radius: 999px; padding: .2rem .65rem; }
+
+  .layout { display: block; margin-top: 0; }
+
+  nav.toc {
+    border: 1px solid var(--hairline);
+    background: var(--surface-2);
+    border-radius: 10px;
+    padding: 1rem 1.2rem 1.1rem;
+    margin-bottom: 2rem;
+    break-inside: avoid;
+    font-size: .9rem;
+  }
+  nav.toc p.toc-h {
+    font-family: "IBM Plex Mono", monospace; font-size: .7rem; letter-spacing: .16em;
+    text-transform: uppercase; color: var(--muted); margin: 0 0 .7rem;
+  }
+  nav.toc ol {
+    list-style: none; margin: 0; padding: 0; counter-reset: toc;
+    columns: 2; column-gap: 2rem;
+  }
+  nav.toc li { margin: 0; break-inside: avoid; }
+  nav.toc a {
+    counter-increment: toc;
+    display: grid; grid-template-columns: 1.7rem 1fr; gap: .4rem;
+    padding: .25rem 0; color: var(--ink-soft); text-decoration: none; line-height: 1.35;
+  }
+  nav.toc a::before {
+    content: counter(toc, decimal-leading-zero);
+    font-family: "IBM Plex Mono", monospace; font-size: .72rem; color: var(--muted);
+  }
+
+  main { counter-reset: sec; }
+  section.doc {
+    counter-increment: sec;
+    padding-top: 1.7rem; margin-top: 1.7rem;
+    border-top: 1px solid var(--hairline);
+  }
+  section.doc:first-of-type { border-top: 0; margin-top: 0; padding-top: 0; }
+  section.doc > h2 {
+    font-family: "Bricolage Grotesque", "IBM Plex Sans", sans-serif;
+    font-weight: 700; font-size: 1.5rem; line-height: 1.14; letter-spacing: -.015em;
+    margin: 0 0 .8rem; display: grid; grid-template-columns: auto 1fr; gap: .6rem; align-items: baseline;
+    break-after: avoid;
+  }
+  section.doc > h2::before {
+    content: "§" counter(sec);
+    font-family: "IBM Plex Mono", monospace; font-size: .9rem; font-weight: 600;
+    color: var(--accent); transform: translateY(-.12em);
+  }
+  h3 {
+    font-family: "Bricolage Grotesque", "IBM Plex Sans", sans-serif;
+    font-weight: 600; font-size: 1.08rem; letter-spacing: -.01em; margin: 1.5rem 0 .5rem;
+    break-after: avoid;
+  }
+  p { margin: 0 0 .85rem; max-width: var(--measure); }
+  a { color: var(--link); }
+  strong { font-weight: 600; color: var(--ink); }
+
+  ul, ol.steps { max-width: var(--measure); margin: 0 0 .9rem; padding-left: 1.2rem; }
+  li { margin: .25rem 0; }
+  ol.steps { padding-left: 0; list-style: none; counter-reset: step; }
+  ol.steps > li {
+    counter-increment: step;
+    display: grid; grid-template-columns: 1.8rem 1fr; gap: .7rem; margin: .5rem 0;
+    break-inside: avoid;
+  }
+  ol.steps > li::before {
+    content: counter(step);
+    font-family: "IBM Plex Mono", monospace; font-weight: 600; font-size: .8rem; color: var(--accent);
+    background: var(--surface-2); border: 1px solid var(--hairline-strong); border-radius: 6px;
+    width: 1.8rem; height: 1.6rem; display: grid; place-items: center;
+  }
+
+  code, .mono {
+    font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: .85em;
+    background: var(--surface-2); border: 1px solid var(--hairline); border-radius: 4px;
+    padding: .04em .35em; white-space: nowrap;
+  }
+
+  .roles { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: .8rem; margin: 1.1rem 0 1.3rem; break-inside: avoid; }
+  .role {
+    background: var(--surface); border: 1px solid var(--hairline-strong); border-radius: 10px;
+    padding: .9rem 1rem; display: flex; flex-direction: column; gap: .4rem;
+  }
+  .role h4 { font-family: "Bricolage Grotesque", sans-serif; font-weight: 600; font-size: .98rem; margin: 0; }
+  .role .who {
+    font-family: "IBM Plex Mono", monospace; font-size: .68rem; letter-spacing: .04em;
+    text-transform: uppercase; color: var(--muted);
+  }
+  .role ul { margin: .2rem 0 0; padding-left: 1rem; font-size: .86rem; }
+  .role li { margin: .18rem 0; }
+
+  .note {
+    border-left: 3px solid var(--accent); background: var(--surface-2);
+    border-radius: 0 8px 8px 0; padding: .8rem 1rem; margin: 1.1rem 0;
+    max-width: var(--measure); break-inside: avoid;
+  }
+  .note.warn { border-left-color: var(--c-stop); }
+  .note.tip { border-left-color: var(--c-done); }
+  .note p { margin: 0; }
+  .note p + p { margin-top: .45rem; }
+  .note .tag {
+    font-family: "IBM Plex Mono", monospace; font-size: .68rem; font-weight: 600;
+    letter-spacing: .14em; text-transform: uppercase; color: var(--muted);
+    display: block; margin-bottom: .28rem;
+  }
+
+  .table-scroll { overflow: visible; margin: 1.1rem 0 1.3rem; border: 1px solid var(--hairline-strong); border-radius: 10px; }
+  table { border-collapse: collapse; width: 100%; font-size: .86rem; }
+  th, td { text-align: left; padding: .55rem .75rem; vertical-align: top; border-bottom: 1px solid var(--hairline); }
+  thead { display: table-header-group; }
+  tr { break-inside: avoid; }
+  thead th {
+    font-family: "IBM Plex Mono", monospace; font-size: .66rem; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--muted); background: var(--surface-2); white-space: nowrap;
+  }
+  tbody tr:last-child td { border-bottom: 0; }
+  td .mono, td code { background: transparent; border: 0; padding: 0; }
+
+  .pill {
+    display: inline-block; font-family: "IBM Plex Mono", monospace; font-size: .7rem; font-weight: 600;
+    letter-spacing: .02em; padding: .14rem .5rem; border-radius: 999px; white-space: nowrap;
+  }
+  .p-wait { background: var(--c-wait-bg); color: var(--c-wait); }
+  .p-active { background: var(--c-active-bg); color: var(--c-active); }
+  .p-part { background: var(--c-part-bg); color: var(--c-part); }
+  .p-done { background: var(--c-done-bg); color: var(--c-done); }
+  .p-stop { background: var(--c-stop-bg); color: var(--c-stop); }
+
+  .flow {
+    display: flex; flex-wrap: wrap; gap: .3rem; align-items: stretch;
+    padding: .8rem 0 1rem; margin-bottom: .4rem; break-inside: avoid;
+  }
+  .flow .step {
+    flex: 0 0 auto; background: var(--surface); border: 1px solid var(--hairline-strong);
+    border-radius: 7px; padding: .4rem .6rem; font-size: .76rem; line-height: 1.25; max-width: 9rem;
+  }
+  .flow .step b { display: block; font-family: "Bricolage Grotesque", sans-serif; font-weight: 600; font-size: .78rem; }
+  .flow .step .by {
+    font-family: "IBM Plex Mono", monospace; font-size: .6rem; text-transform: uppercase;
+    letter-spacing: .06em; color: var(--muted);
+  }
+  .flow .arr { flex: 0 0 auto; color: var(--muted); font-size: .85rem; align-self: center; }
+
+  .kv {
+    display: grid; grid-template-columns: max-content 1fr; gap: .3rem 1rem;
+    margin: .9rem 0 1.1rem; font-size: .9rem; max-width: var(--measure);
+  }
+  .kv dt { font-family: "IBM Plex Mono", monospace; font-size: .76rem; color: var(--muted); padding-top: .1rem; }
+  .kv dd { margin: 0; break-inside: avoid; }
+
+  footer.foot {
+    margin-top: 3rem; padding-top: 1.2rem; border-top: 2px solid var(--ink);
+    font-size: .82rem; color: var(--muted); max-width: var(--measure);
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="masthead">
+    <p class="eyebrow">Panduan Operasional · Internal</p>
+    <h1 class="title">Panduan Tim Vicmic Service</h1>
+    <p class="lede">Cara memakai aplikasi bengkel dari antrean pelanggan sampai unit diserahkan kembali — untuk Admin Meja Depan, Teknisi, dan Owner.</p>
+    <div class="meta-row">
+      <span>Versi 1.0</span>
+      <span>Berlaku 3 September 2026</span>
+      <span>Aplikasi: Vicmic Service SuperApp</span>
+    </div>
+  </header>
+
+  <div class="layout">
+    <nav class="toc" aria-label="Daftar isi">
+      <p class="toc-h">Isi</p>
+      <ol>
+        <li><a href="#masuk">Masuk &amp; perangkat</a></li>
+        <li><a href="#peran">Peran &amp; hak akses</a></li>
+        <li><a href="#alur">Gambaran alur harian</a></li>
+        <li><a href="#antrean">Meja Depan — Antrean</a></li>
+        <li><a href="#intake">Meja Depan — Servis Baru</a></li>
+        <li><a href="#workbench">Teknisi — Workbench</a></li>
+        <li><a href="#sparepart">Alur sparepart</a></li>
+        <li><a href="#qc">Uji QC</a></li>
+        <li><a href="#pickup">Pengambilan &amp; serah terima</a></li>
+        <li><a href="#notif">Notifikasi (lonceng)</a></li>
+        <li><a href="#daftar">Daftar Servis &amp; ekspor</a></li>
+        <li><a href="#owner">Owner — staf &amp; data</a></li>
+        <li><a href="#ref-status">Referensi: status tiket</a></li>
+        <li><a href="#ref-garansi">Referensi: kode garansi</a></li>
+        <li><a href="#faq">Masalah umum</a></li>
+      </ol>
+    </nav>
+
+    <main>
+      <section class="doc" id="masuk">
+        <h2>Masuk &amp; perangkat</h2>
+        <p>Aplikasi dibuka lewat browser (HP atau komputer). Buka alamat aplikasi, lalu:</p>
+        <ul>
+          <li><strong>Pelanggan</strong> langsung memakai halaman depan — ambil nomor antrean atau cek status servis — tanpa login.</li>
+          <li><strong>Staf</strong> menekan tautan <em>“Staf toko? Masuk di sini”</em> di halaman depan, atau membuka <code>/login</code>, lalu masuk dengan email &amp; kata sandi yang dibuatkan Owner.</li>
+        </ul>
+        <p>Setelah masuk, aplikasi otomatis membuka area sesuai peran: Meja Depan ke <strong>Antrean</strong>, Teknisi ke <strong>Workbench</strong>. Tombol <strong>Keluar</strong> ada di pojok kanan atas.</p>
+        <div class="note tip">
+          <span class="tag">Pasang seperti aplikasi</span>
+          <p>Di HP, buka menu browser lalu pilih <em>“Tambahkan ke Layar Utama”</em>. Ikon Vicmic akan muncul seperti aplikasi biasa dan membuka layar penuh. Aplikasi tetap butuh internet untuk data terbaru.</p>
+        </div>
+      </section>
+
+      <section class="doc" id="peran">
+        <h2>Peran &amp; hak akses</h2>
+        <p>Ada tiga peran. Peran menentukan menu yang muncul dan tombol yang bisa ditekan.</p>
+        <div class="roles">
+          <div class="role">
+            <span class="who">Meja Depan</span>
+            <h4>Admin</h4>
+            <ul>
+              <li>Kelola antrean pelanggan</li>
+              <li>Buat tiket Servis Baru (intake)</li>
+              <li>Pesan &amp; terima sparepart</li>
+              <li>Jalankan Uji QC (lulus / tolak)</li>
+              <li>Serah terima unit ke pelanggan</li>
+              <li>Lihat Pelanggan &amp; Laporan</li>
+            </ul>
+          </div>
+          <div class="role">
+            <span class="who">Bengkel</span>
+            <h4>Teknisi</h4>
+            <ul>
+              <li>Tarik tiket berikutnya (FIFO)</li>
+              <li>Diagnosa &amp; perbaikan</li>
+              <li>Ajukan permintaan sparepart</li>
+              <li>Pasang sparepart &amp; eskalasi</li>
+              <li>Tandai pengerjaan selesai → Uji QC</li>
+            </ul>
+          </div>
+          <div class="role">
+            <span class="who">Pemilik</span>
+            <h4>Owner</h4>
+            <ul>
+              <li>Semua akses Admin &amp; Teknisi</li>
+              <li>Ubah status bebas (untuk koreksi, wajib pakai catatan)</li>
+              <li>Kelola staf: tambah, ubah peran, reset sandi</li>
+              <li>Reset / hapus data</li>
+            </ul>
+          </div>
+        </div>
+        <p>Menu <strong>Staf</strong> hanya terlihat oleh Owner. Menu Teknisi hanya berisi <strong>Workbench</strong>.</p>
+      </section>
+
+      <section class="doc" id="alur">
+        <h2>Gambaran alur harian</h2>
+        <p>Satu unit servis berjalan dari kiri ke kanan. Kolom “oleh” menandai siapa yang menekan tombol pindah status.</p>
+        <div class="flow" role="list" aria-label="Alur status servis">
+          <div class="step" role="listitem"><b>Diterima</b><span class="by">Admin — intake</span></div>
+          <span class="arr">→</span>
+          <div class="step" role="listitem"><b>Diagnosa</b><span class="by">Teknisi</span></div>
+          <span class="arr">→</span>
+          <div class="step" role="listitem"><b>Menunggu persetujuan</b><span class="by">Teknisi / pelanggan</span></div>
+          <span class="arr">→</span>
+          <div class="step" role="listitem"><b>Sedang diperbaiki</b><span class="by">Teknisi</span></div>
+          <span class="arr">→</span>
+          <div class="step" role="listitem"><b>Uji QC</b><span class="by">Teknisi tandai · Admin uji</span></div>
+          <span class="arr">→</span>
+          <div class="step" role="listitem"><b>Siap diambil</b><span class="by">Admin — lulus QC</span></div>
+          <span class="arr">→</span>
+          <div class="step" role="listitem"><b>Selesai / diserahkan</b><span class="by">Admin — pengambilan</span></div>
+        </div>
+        <p>Bila butuh sparepart, unit masuk cabang <span class="pill p-part">Menunggu sparepart</span> → <span class="pill p-part">Part tiba</span> → <span class="pill p-part">Pemasangan sparepart</span> sebelum kembali ke Uji QC (lihat <a href="#sparepart">§7</a>). Unit bisa <span class="pill p-stop">Dibatalkan</span> dari hampir semua tahap.</p>
+      </section>
+
+      <section class="doc" id="antrean">
+        <h2>Meja Depan — Antrean</h2>
+        <h3>Halaman depan publik</h3>
+        <p>Pelanggan yang datang membuka halaman depan di HP mereka (atau di perangkat yang disediakan toko) dan menekan <strong>Ambil Nomor Antrean</strong>. Di atas tombol ada ringkasan langsung: jumlah orang menunggu, rincian per jenis, dan nomor yang sedang dipanggil.</p>
+        <p>Ada tiga jenis antrean:</p>
+        <div class="kv">
+          <dt>A-01</dt><dd><strong>Servis Baru</strong> — unit mau ditinggal untuk diperbaiki.</dd>
+          <dt>B-01</dt><dd><strong>Pengambilan Unit</strong> — ambil unit yang sudah selesai. Wajib isi nomor tiket / nota (<code>VMC-…</code>).</dd>
+          <dt>C-01</dt><dd><strong>Konsultasi / Pembelian / Lain-lain</strong>.</dd>
+        </div>
+        <h3>Papan Antrean (menu “Antrean”)</h3>
+        <ol class="steps">
+          <li><strong>Panggil</strong> nomor teratas → status jadi <span class="pill p-done">Sedang dilayani</span>, pelanggan lihat “Giliran Anda”.</li>
+          <li>Saat pelanggan datang ke meja, tekan <strong>Terima</strong>. Untuk A (Servis Baru) aplikasi langsung membuka form intake dengan nama &amp; HP terisi. Untuk B (Pengambilan) langsung membuka panel Pengambilan.</li>
+          <li>Untuk C (Lain-lain) cukup <strong>Selesai</strong> setelah dilayani.</li>
+          <li><strong>Kembalikan ke antrean</strong> kalau salah panggil; <strong>Batalkan</strong> kalau pelanggan tidak ada.</li>
+        </ol>
+        <p>Papan menyegar sendiri (realtime). Nomor antrean berlaku untuk hari itu saja.</p>
+      </section>
+
+      <section class="doc" id="intake">
+        <h2>Meja Depan — Servis Baru (Intake)</h2>
+        <p>Dibuka dari tombol <strong>Terima</strong> di antrean, atau menu <strong>Servis Baru</strong>. Isi selengkap mungkin — data ini yang dipakai teknisi dan jadi bukti kondisi unit saat masuk.</p>
+        <ol class="steps">
+          <li><strong>Data pelanggan:</strong> Nama, No. WhatsApp (wajib), No. telepon alternatif, Email. Email dipakai untuk pemberitahuan “unit siap diambil”.</li>
+          <li><strong>Unit:</strong> Deskripsi produk (mis. <em>Lenovo ThinkPad X1 Carbon Gen 9, hitam</em>), MTM / Model, Serial Number.</li>
+          <li><strong>Status Garansi:</strong> pilih <code>INW</code>, <code>OOW</code>, <code>CID</code>, atau <code>DOA</code> (lihat <a href="#ref-garansi">§14</a>).</li>
+          <li><strong>Kelengkapan:</strong> centang yang ikut dititipkan (adaptor, tas/dus, dst.) dan tulis kelengkapan lain bila ada.</li>
+          <li><strong>Keluhan &amp; Kondisi Fisik:</strong> tulis keluhan pelanggan apa adanya, centang tanda kondisi fisik saat diterima (baret, engsel longgar, dll.), tambahkan catatan bila perlu.</li>
+          <li><strong>Foto Unit:</strong> ambil foto kondisi unit. Foto dikompres otomatis sebelum diunggah.</li>
+          <li>Centang persetujuan syarat, lalu <strong>Simpan</strong>. Aplikasi membuat nomor tiket <code>VMC-YYYYMMDD-###</code> dan menutup antrean pelanggan tersebut.</li>
+        </ol>
+        <div class="note">
+          <span class="tag">Setelah disimpan</span>
+          <p>Tiket langsung masuk antre kerja teknisi dengan status <span class="pill p-wait">Diterima</span>. Semua teknisi mendapat notifikasi “Unit baru diterima”.</p>
+        </div>
+      </section>
+
+      <section class="doc" id="workbench">
+        <h2>Teknisi — Workbench</h2>
+        <h3>Menarik pekerjaan</h3>
+        <p>Tekan <strong>Tarik Tiket Berikutnya (FIFO)</strong>. Aplikasi memberi unit <span class="pill p-wait">Diterima</span> yang paling lama menunggu, menugaskannya ke Anda, dan memindahkannya ke <span class="pill p-active">Diagnosa</span>. Satu tombol = satu unit; tidak bisa memilih-milih.</p>
+        <h3>Dua tab</h3>
+        <ul>
+          <li><strong>Tarikan Saya</strong> — unit yang ditugaskan ke Anda.</li>
+          <li><strong>Teknisi Lain</strong> — unit aktif milik rekan. Bisa dilihat &amp; dibantu; status tetap bisa diubah siapa saja.</li>
+        </ul>
+        <p>Di bawah tab ada <strong>chip filter status</strong> (Diagnosa, Menunggu sparepart, Uji QC, …) lengkap dengan jumlahnya, jadi sebaran pekerjaan langsung kelihatan. Kolom pencarian mencocokkan nomor tiket, nama, unit, dan <strong>serial number</strong>.</p>
+        <h3>Mengubah status</h3>
+        <p>Buka satu tiket. Tombol yang muncul hanya langkah maju yang sah:</p>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Dari</th><th>Tombol</th><th>Menjadi</th></tr></thead>
+            <tbody>
+              <tr><td><span class="pill p-active">Diagnosa</span></td><td>Menunggu persetujuan / Sedang diperbaiki / Dibatalkan</td><td>sesuai pilihan</td></tr>
+              <tr><td><span class="pill p-wait">Menunggu persetujuan</span></td><td>Sedang diperbaiki / Dibatalkan</td><td>sesuai pilihan</td></tr>
+              <tr><td><span class="pill p-active">Sedang diperbaiki</span></td><td><strong>Perbaikan Selesai → Uji QC</strong> / Dibatalkan</td><td><span class="pill p-active">Uji QC</span></td></tr>
+              <tr><td><span class="pill p-part">Pemasangan sparepart</span></td><td><strong>Pemasangan Selesai → Uji QC</strong> / Eskalasi / Dibatalkan</td><td><span class="pill p-active">Uji QC</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Saat meninggalkan <span class="pill p-active">Diagnosa</span>, <strong>catatan diagnosa wajib diisi</strong> (temuan, penyebab, rencana perbaikan). Pekerjaan teknisi berakhir di <strong>Uji QC</strong> — selanjutnya giliran Admin.</p>
+      </section>
+
+      <section class="doc" id="sparepart">
+        <h2>Alur sparepart</h2>
+        <p>Dipakai kalau perbaikan butuh part. Empat langkah, bergantian antara Teknisi dan Admin.</p>
+        <ol class="steps">
+          <li><strong>Teknisi — Request Sparepart.</strong> Di detail tiket, tulis part yang dibutuhkan. Status tiket <em>belum</em> berubah; Admin dapat notifikasi “Sparepart diminta”.</li>
+          <li><strong>Admin — Tandai Sudah Dipesan.</strong> Status jadi <span class="pill p-part">Menunggu sparepart</span>.</li>
+          <li><strong>Admin — Tandai Sparepart Tiba.</strong> Status jadi <span class="pill p-part">Part tiba</span>. Teknisi dapat notifikasi “Sparepart tiba”.</li>
+          <li><strong>Teknisi — mulai memasang.</strong> Pindahkan ke <span class="pill p-part">Pemasangan sparepart</span> begitu benar-benar mulai (supaya rekan tahu unit sedang ditangani, bukan cuma partnya yang datang).</li>
+        </ol>
+        <h3>Eskalasi saat pemasangan</h3>
+        <p>Kalau di tengah pemasangan ketemu masalah lebih besar / part kurang / tidak cocok, tekan <strong>Eskalasi → Menunggu Sparepart</strong> dan tulis alasannya (wajib). Unit balik ke <span class="pill p-part">Menunggu sparepart</span>, permintaan part terbuka lagi, dan Admin dapat notifikasi “Eskalasi sparepart”. Alur langkah 2–4 diulang.</p>
+      </section>
+
+      <section class="doc" id="qc">
+        <h2>Uji QC</h2>
+        <p>Uji QC dipisah dari pengerjaan supaya ada pemeriksaan mata kedua.</p>
+        <ol class="steps">
+          <li><strong>Teknisi</strong> menekan <em>Perbaikan Selesai → Uji QC</em> atau <em>Pemasangan Selesai → Uji QC</em>. Status jadi <span class="pill p-active">Uji QC</span> dan <strong>Admin + Owner dapat notifikasi “Perlu Uji QC”</strong>.</li>
+          <li><strong>Admin</strong> membuka tiket dan menguji unit, lalu memilih:
+            <ul>
+              <li><strong>Uji QC → Siap Diambil</strong> (lulus). Isi <em>Catatan QC</em> (mis. keyboard OK, suhu normal, charging OK). Status jadi <span class="pill p-done">Siap diambil</span>; bila email pelanggan ada, pemberitahuan terkirim otomatis.</li>
+              <li><strong>Tolak QC → Diagnosa</strong> (gagal). <strong>Alasan wajib diisi.</strong> Unit kembali ke <span class="pill p-active">Diagnosa</span> dari awal, tetap di teknisi yang sama, dan muncul lagi di Workbench-nya.</li>
+            </ul>
+          </li>
+        </ol>
+        <div class="note">
+          <span class="tag">Catatan</span>
+          <p>Teknisi tidak meluluskan / menolak QC sendiri. Bila unit di <span class="pill p-active">Uji QC</span>, di Workbench teknisi hanya tertulis “Menunggu Uji QC oleh admin”.</p>
+        </div>
+      </section>
+
+      <section class="doc" id="pickup">
+        <h2>Pengambilan &amp; serah terima</h2>
+        <p>Saat unit <span class="pill p-done">Siap diambil</span>, di detail tiket ada tombol <strong>Kabari pelanggan via WhatsApp</strong> dengan pesan siap-pakai.</p>
+        <ol class="steps">
+          <li>Pelanggan ambil nomor antrean <strong>B — Pengambilan Unit</strong> dan sebut nomor tiketnya.</li>
+          <li>Di antrean, tekan <strong>Terima</strong> → panel <strong>Pengambilan</strong> terbuka (atau buka menu Pengambilan lalu cari nomor tiket).</li>
+          <li>Cek identitas &amp; kelengkapan unit, lalu tekan <strong>Unit diserahkan</strong>. Status jadi <span class="pill p-done">Selesai / diserahkan</span> dan antrean pengambilan ikut ditutup.</li>
+        </ol>
+        <div class="note">
+          <span class="tag">Pembayaran</span>
+          <p>Aplikasi tidak menghitung biaya. Nota &amp; pembayaran ditangani manual di luar aplikasi sesuai prosedur toko.</p>
+        </div>
+      </section>
+
+      <section class="doc" id="notif">
+        <h2>Notifikasi (lonceng)</h2>
+        <p>Ikon lonceng di kanan atas. Notifikasi tampil realtime; klik untuk langsung ke halaman terkait.</p>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Notifikasi</th><th>Diterima</th><th>Dipicu oleh</th></tr></thead>
+            <tbody>
+              <tr><td>Antrean baru</td><td>Admin, Owner</td><td>Pelanggan ambil nomor</td></tr>
+              <tr><td>Unit baru diterima</td><td>Teknisi, Owner</td><td>Intake disimpan</td></tr>
+              <tr><td>Sparepart diminta</td><td>Admin, Owner</td><td>Teknisi request part</td></tr>
+              <tr><td>Sparepart tiba</td><td>Teknisi, Owner</td><td>Admin tandai part tiba</td></tr>
+              <tr><td>Eskalasi sparepart</td><td>Admin, Owner</td><td>Teknisi eskalasi saat pemasangan</td></tr>
+              <tr><td>Perlu Uji QC</td><td>Admin, Owner</td><td>Teknisi tandai pengerjaan selesai</td></tr>
+              <tr><td>Unit siap diambil</td><td>Admin, Owner</td><td>Admin luluskan QC — membuka detail servis</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="doc" id="daftar">
+        <h2>Daftar Servis &amp; ekspor</h2>
+        <p>Menu <strong>Daftar Servis</strong> (Admin) punya dua bagian:</p>
+        <ul>
+          <li><strong>Kanban tiket aktif</strong> — kolom per status dari <em>Diterima</em> sampai <em>Siap diambil</em>. Kartu ringkas menampilkan nomor tiket, kode garansi, unit, teknisi, dan umur. Tanda: <em>Baru</em> (berubah &lt; 3 jam), ikon paket (perlu order sparepart), segitiga (diam &gt; 2 hari). Kartu diurutkan yang paling lama tidak berubah di atas.</li>
+          <li><strong>Riwayat Selesai</strong> — tabel tiket <span class="pill p-done">Selesai</span> &amp; <span class="pill p-stop">Dibatalkan</span>: tanggal masuk, tanggal selesai, no. servis, nama, telepon, status. Ikut menyusut saat kolom pencarian diisi; 100 baris terbaru ditampilkan.</li>
+        </ul>
+        <p>Tombol <strong>Ekspor CSV</strong> mengunduh data lengkap untuk arsip / laporan.</p>
+      </section>
+
+      <section class="doc" id="owner">
+        <h2>Owner — staf &amp; data</h2>
+        <h3>Kelola Staf</h3>
+        <ul>
+          <li><strong>Tambah staf</strong> — isi email, kata sandi awal, nama, peran. Akun langsung aktif.</li>
+          <li><strong>Ubah peran</strong> lewat pilihan di tabel. Owner tidak bisa menurunkan perannya sendiri.</li>
+          <li><strong>Reset kata sandi</strong> staf bila lupa.</li>
+        </ul>
+        <h3>Zona berbahaya</h3>
+        <div class="note warn">
+          <span class="tag">Hati-hati</span>
+          <p><strong>Reset Data Hari Ini</strong> dan <strong>Hapus SEMUA Data</strong> tidak bisa dibatalkan. Pakai hanya untuk membersihkan data uji coba, bukan pada data operasional.</p>
+        </div>
+        <h3>Koreksi status</h3>
+        <p>Hanya Owner yang bisa memindahkan status ke mana saja (mis. membatalkan langkah yang salah). Setiap koreksi <strong>wajib disertai catatan alasan</strong> dan tercatat di Riwayat tiket.</p>
+        <h3>Laporan</h3>
+        <p>Menu <strong>Laporan</strong> menampilkan rekap bulanan. Selain itu sistem mengirim <strong>rekap harian via email</strong> setiap pukul 22.00 WIB dan rekap bulanan pada awal bulan, ke alamat penerima yang disetel.</p>
+      </section>
+
+      <section class="doc" id="ref-status">
+        <h2>Referensi: status tiket</h2>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Status</th><th>Arti</th><th>Yang bertindak berikutnya</th></tr></thead>
+            <tbody>
+              <tr><td><span class="pill p-wait">Diterima</span></td><td>Baru di-intake, menunggu ditarik teknisi</td><td>Teknisi — Tarik FIFO</td></tr>
+              <tr><td><span class="pill p-active">Diagnosa</span></td><td>Teknisi memeriksa kerusakan</td><td>Teknisi</td></tr>
+              <tr><td><span class="pill p-wait">Menunggu persetujuan</span></td><td>Menunggu keputusan pelanggan atas estimasi</td><td>Teknisi (setelah pelanggan setuju)</td></tr>
+              <tr><td><span class="pill p-part">Menunggu sparepart</span></td><td>Part sudah dipesan, belum datang</td><td>Admin — tandai tiba</td></tr>
+              <tr><td><span class="pill p-part">Part tiba</span></td><td>Part sudah di tangan, belum dipasang</td><td>Teknisi — mulai pasang</td></tr>
+              <tr><td><span class="pill p-part">Pemasangan sparepart</span></td><td>Teknisi sedang memasang part</td><td>Teknisi — selesai / eskalasi</td></tr>
+              <tr><td><span class="pill p-active">Sedang diperbaiki</span></td><td>Perbaikan tanpa/di luar jalur sparepart</td><td>Teknisi — tandai selesai</td></tr>
+              <tr><td><span class="pill p-active">Uji QC</span></td><td>Pengerjaan selesai, menunggu pemeriksaan Admin</td><td>Admin — lulus / tolak</td></tr>
+              <tr><td><span class="pill p-done">Siap diambil</span></td><td>Lulus QC, tunggu pelanggan</td><td>Admin — serah terima</td></tr>
+              <tr><td><span class="pill p-done">Selesai / diserahkan</span></td><td>Unit sudah kembali ke pelanggan</td><td>—</td></tr>
+              <tr><td><span class="pill p-stop">Dibatalkan</span></td><td>Servis dihentikan</td><td>—</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="doc" id="ref-garansi">
+        <h2>Referensi: kode garansi</h2>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Kode</th><th>Kepanjangan</th><th>Arti singkat</th></tr></thead>
+            <tbody>
+              <tr><td><span class="pill p-done">INW</span></td><td>In Warranty</td><td>Masih dalam garansi — ditanggung.</td></tr>
+              <tr><td><span class="pill p-wait">OOW</span></td><td>Out of Warranty</td><td>Di luar garansi — biaya ke pelanggan.</td></tr>
+              <tr><td><span class="pill p-wait">CID</span></td><td>Customer Induced Damage</td><td>Rusak akibat pemakaian — umumnya tidak ditanggung garansi.</td></tr>
+              <tr><td><span class="pill p-stop">DOA</span></td><td>Dead on Arrival</td><td>Rusak / mati sejak awal diterima.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="doc" id="faq">
+        <h2>Masalah umum</h2>
+        <div class="kv">
+          <dt>Q</dt><dd><strong>Tiket antrean pelanggan tidak ketemu.</strong> Nomor antrean hanya berlaku pada hari yang sama — minta pelanggan ambil nomor baru.</dd>
+          <dt>Q</dt><dd><strong>“Status tiket sudah berubah. Muat ulang halaman.”</strong> Ada orang lain yang mengubah tiket itu barusan. Muat ulang, cek status terkini, lalu ulangi.</dd>
+          <dt>Q</dt><dd><strong>Tombol pindah status tidak muncul untuk teknisi di Uji QC / Menunggu sparepart.</strong> Itu memang giliran Admin. Tunggu prosesnya atau kabari Meja Depan.</dd>
+          <dt>Q</dt><dd><strong>Salah memindahkan status.</strong> Minta Owner mengoreksi (Owner bisa pindah bebas dengan catatan). Admin/Teknisi tidak bisa memundurkan status sendiri.</dd>
+          <dt>Q</dt><dd><strong>Email “siap diambil” tidak terkirim.</strong> Cek apakah email pelanggan diisi saat intake. Status tetap berubah walau email gagal.</dd>
+          <dt>Q</dt><dd><strong>Data tidak update.</strong> Halaman menyegar realtime + tiap 15–20 detik. Kalau ragu, muat ulang halaman.</dd>
+        </div>
+      </section>
+
+      <footer class="foot">
+        <p>Dokumen internal Vicmic Service. Perbarui panduan ini bila alur di aplikasi berubah. Pertanyaan atau usulan perbaikan alur: sampaikan ke Owner.</p>
+      </footer>
+    </main>
+  </div>
+</div>
+
+</body>
+</html>

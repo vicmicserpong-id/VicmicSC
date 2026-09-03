@@ -2,14 +2,14 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Vicmic Service SuperApp",
-    short_name: "Vicmic",
+    name: "Aplikasi Vicmic Service",
+    short_name: "Vicmic Service",
     description: "Aplikasi Antrean & Manajemen Servis Laptop Vicmic Indonesia",
     start_url: "/",
     scope: "/",
     display: "standalone",
-    background_color: "#ffffff",
-    theme_color: "#0f172a",
+    background_color: "#f4fbf5",
+    theme_color: "#2e9e4c",
     orientation: "portrait-primary",
     lang: "id",
     icons: [

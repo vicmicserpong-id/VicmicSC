@@ -1,108 +1,77 @@
-// Generator ikon PWA tanpa dependency (pakai zlib bawaan Node).
-// Menggambar logo "V" putih di atas latar navy (#0F172A).
+// Membangun semua aset ikon dari public/logo-source.png (1040x1040, RGBA).
 // Jalankan: node scripts/generate-icons.mjs
-import { deflateSync } from "node:zlib";
-import { writeFileSync, mkdirSync } from "node:fs";
-import { resolve, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
+import { readFile, writeFile } from "node:fs/promises";
+import path from "node:path";
+import sharp from "sharp";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const OUT = resolve(__dirname, "../public/icons");
-mkdirSync(OUT, { recursive: true });
+const ROOT = path.resolve(import.meta.dirname, "..");
+const SRC = path.join(ROOT, "public", "logo-source.png");
 
-const BG = [0x0f, 0x17, 0x2a];
-const FG = [0xf8, 0xfa, 0xfc];
+// Warna dari brand: hijau gear #2e9e4c, kotak latar hijau pucat #f4fbf5.
+const PALE = { r: 244, g: 251, b: 245, alpha: 1 };
+const WHITE = { r: 255, g: 255, b: 255, alpha: 1 };
 
-function distToSegment(px, py, ax, ay, bx, by) {
-  const dx = bx - ax;
-  const dy = by - ay;
-  const len2 = dx * dx + dy * dy || 1;
-  let t = ((px - ax) * dx + (py - ay) * dy) / len2;
-  t = Math.max(0, Math.min(1, t));
-  const cx = ax + t * dx;
-  const cy = ay + t * dy;
-  return Math.hypot(px - cx, py - cy);
+const src = await readFile(SRC);
+
+/** Sumber diratakan ke satu warna latar (buang sudut transparan), ukuran full. */
+async function flat(size, bg) {
+  return sharp(src)
+    .resize(size, size, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
+    .flatten({ background: bg })
+    .png()
+    .toBuffer();
 }
 
-function renderRGBA(size) {
-  const data = Buffer.alloc(size * size * 4);
-  const stroke = size * 0.12;
-  const topY = size * 0.30;
-  const botY = size * 0.70;
-  const lx = size * 0.28;
-  const rx = size * 0.72;
-  const mx = size * 0.5;
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      const d = Math.min(
-        distToSegment(x, y, lx, topY, mx, botY),
-        distToSegment(x, y, rx, topY, mx, botY),
-      );
-      // anti-alias tepi 1px
-      const a = Math.max(0, Math.min(1, stroke / 2 - d + 0.5));
-      const [r, g, b] = a >= 1 ? FG : a <= 0 ? BG : [
-        Math.round(BG[0] + (FG[0] - BG[0]) * a),
-        Math.round(BG[1] + (FG[1] - BG[1]) * a),
-        Math.round(BG[2] + (FG[2] - BG[2]) * a),
-      ];
-      const i = (y * size + x) * 4;
-      data[i] = r;
-      data[i + 1] = g;
-      data[i + 2] = b;
-      data[i + 3] = 255;
-    }
-  }
-  return data;
+async function out(name, buf) {
+  const p = path.join(ROOT, "public", name);
+  await writeFile(p, buf);
+  console.log("✓", name, `(${buf.length} B)`);
 }
 
-function crc32(buf) {
-  let c = ~0;
-  for (let i = 0; i < buf.length; i++) {
-    c ^= buf[i];
-    for (let k = 0; k < 8; k++) c = (c >>> 1) ^ (0xedb88320 & -(c & 1));
-  }
-  return ~c >>> 0;
-}
+// --- Ikon "any": full-bleed hijau pucat + mark ---
+await out("icons/icon-192x192.png", await flat(192, PALE));
+await out("icons/icon-512x512.png", await flat(512, PALE));
 
-function chunk(type, data) {
-  const t = Buffer.from(type, "ascii");
-  const len = Buffer.alloc(4);
-  len.writeUInt32BE(data.length, 0);
-  const crc = Buffer.alloc(4);
-  crc.writeUInt32BE(crc32(Buffer.concat([t, data])), 0);
-  return Buffer.concat([len, t, data, crc]);
-}
+// --- Ikon maskable: mark diperkecil ke ~78% dengan area aman di sekeliling ---
+const base512 = await flat(512, PALE);
+const inner = Math.round(512 * 0.78);
+const maskable = await sharp({
+  create: { width: 512, height: 512, channels: 4, background: PALE },
+})
+  .composite([{ input: await sharp(base512).resize(inner, inner).toBuffer(), gravity: "centre" }])
+  .png()
+  .toBuffer();
+await out("icons/maskable-512x512.png", maskable);
 
-function encodePNG(size, rgba) {
-  const sig = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
-  const ihdr = Buffer.alloc(13);
-  ihdr.writeUInt32BE(size, 0);
-  ihdr.writeUInt32BE(size, 4);
-  ihdr[8] = 8; // bit depth
-  ihdr[9] = 6; // color type RGBA
-  const raw = Buffer.alloc(size * (size * 4 + 1));
-  for (let y = 0; y < size; y++) {
-    raw[y * (size * 4 + 1)] = 0; // filter: none
-    rgba.copy(raw, y * (size * 4 + 1) + 1, y * size * 4, (y + 1) * size * 4);
-  }
-  return Buffer.concat([
-    sig,
-    chunk("IHDR", ihdr),
-    chunk("IDAT", deflateSync(raw, { level: 9 })),
-    chunk("IEND", Buffer.alloc(0)),
-  ]);
-}
+// --- Apple touch icon (iOS memakai sudut membulatnya sendiri) ---
+await out("apple-touch-icon.png", await flat(180, PALE));
 
-for (const size of [192, 512]) {
-  const png = encodePNG(size, renderRGBA(size));
-  writeFileSync(resolve(OUT, `icon-${size}x${size}.png`), png);
-  console.log(`✓ icons/icon-${size}x${size}.png (${png.length} B)`);
-}
-const maskable = encodePNG(512, renderRGBA(512));
-writeFileSync(resolve(OUT, "maskable-512x512.png"), maskable);
-console.log(`✓ icons/maskable-512x512.png (${maskable.length} B)`);
+// --- Logo dalam aplikasi ---
+// logo-mark: transparan, dipakai kecil di sebelah teks -> latar dibiarkan tembus.
+await out(
+  "logo-mark.png",
+  await sharp(src).resize(256, 256, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } }).png().toBuffer(),
+);
+// logo.png: versi umum di atas putih.
+await out("logo.png", await flat(512, WHITE));
 
-// apple-touch-icon 180x180
-const apple = encodePNG(180, renderRGBA(180));
-writeFileSync(resolve(__dirname, "../public/apple-touch-icon.png"), apple);
-console.log(`✓ apple-touch-icon.png (${apple.length} B)`);
+// --- Favicon: PNG 32px dibungkus kontainer ICO (PNG-in-ICO, didukung semua browser modern) ---
+const fav = await flat(32, PALE);
+const header = Buffer.alloc(6);
+header.writeUInt16LE(0, 0); // reserved
+header.writeUInt16LE(1, 2); // type: icon
+header.writeUInt16LE(1, 4); // jumlah gambar
+const entry = Buffer.alloc(16);
+entry.writeUInt8(32, 0); // width
+entry.writeUInt8(32, 1); // height
+entry.writeUInt8(0, 2); // palet
+entry.writeUInt8(0, 3); // reserved
+entry.writeUInt16LE(1, 4); // color planes
+entry.writeUInt16LE(32, 6); // bpp
+entry.writeUInt32LE(fav.length, 8); // ukuran data
+entry.writeUInt32LE(22, 12); // offset data
+const ico = Buffer.concat([header, entry, fav]);
+await writeFile(path.join(ROOT, "app", "favicon.ico"), ico);
+console.log("✓", "app/favicon.ico", `(${ico.length} B)`);
+
+console.log("\nSelesai.");

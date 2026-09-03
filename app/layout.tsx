@@ -24,9 +24,9 @@ const appUrl =
 
 export const metadata: Metadata = {
   metadataBase: new URL(appUrl),
-  applicationName: "Vicmic Service",
+  applicationName: "Aplikasi Vicmic Service",
   title: {
-    default: "Vicmic Service SuperApp",
+    default: "Aplikasi Vicmic Service",
     template: "%s · Vicmic Service",
   },
   description: "Aplikasi Antrean & Manajemen Servis Laptop Vicmic Indonesia",
@@ -44,7 +44,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0f172a",
+  themeColor: "#2e9e4c",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
