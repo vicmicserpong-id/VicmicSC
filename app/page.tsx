@@ -2,11 +2,23 @@ import Link from "next/link";
 import Image from "next/image";
 import { ClipboardList, Search, ArrowRight } from "lucide-react";
 
+import { createClient } from "@/lib/supabase/server";
+import {
+  QueueStatusStrip,
+  type QueueSummary,
+} from "@/components/shared/queue-status-strip";
+
 export const metadata = {
   title: "Vicmic Service — Antrean & Servis Laptop",
 };
 
-export default function PortalPage() {
+export const dynamic = "force-dynamic";
+
+export default async function PortalPage() {
+  const supabase = await createClient();
+  const { data: summaryRaw } = await supabase.rpc("public_queue_summary");
+  const summary = (summaryRaw as unknown as QueueSummary | null) ?? null;
+
   return (
     <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-4 py-10">
       <div className="mb-8 flex flex-col items-center text-center">
@@ -16,6 +28,8 @@ export default function PortalPage() {
           Selamat datang. Silakan pilih layanan di bawah.
         </p>
       </div>
+
+      <QueueStatusStrip initial={summary} />
 
       <div className="flex flex-col gap-3">
         <Link

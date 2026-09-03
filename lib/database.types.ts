@@ -370,6 +370,7 @@ export type Database = {
       }
       next_counter: { Args: { p_scope: string }; Returns: number }
       next_ticket_number: { Args: never; Returns: string }
+      public_queue_summary: { Args: never; Returns: Json }
       public_track_ticket: {
         Args: { p_ticket_number: string }
         Returns: {
