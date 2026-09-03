@@ -8,12 +8,13 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { TICKET_STATUS_LABEL, type TicketStatus, type PartRequestStatus } from "@/lib/constants";
-import { sinceShort, todayWIB } from "@/lib/format";
+import { sinceShort, todayWIB, formatDateWIB } from "@/lib/format";
 import { downloadTextFile } from "@/lib/download";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { exportTicketsCsvAction } from "@/lib/actions/reports";
 
+// Kanban hanya untuk tiket AKTIF. CLOSED & CANCELLED pindah ke tabel riwayat di bawah.
 const BOARD_COLUMNS: TicketStatus[] = [
   "INTAKE",
   "DIAGNOSING",
@@ -24,8 +25,6 @@ const BOARD_COLUMNS: TicketStatus[] = [
   "IN_REPAIR",
   "QC_TESTING",
   "READY_FOR_PICKUP",
-  "CLOSED",
-  "CANCELLED",
 ];
 
 const DOT_COLOR: Record<TicketStatus, string> = {
@@ -46,9 +45,11 @@ type Row = {
   id: string;
   ticket_number: string;
   customer_name: string;
+  customer_phone: string;
   product_description: string;
   status: TicketStatus;
   assigned_technician: string | null;
+  created_at: string;
   updated_at: string;
   part_status: PartRequestStatus;
 };
@@ -57,12 +58,14 @@ type Profile = { id: string; full_name: string | null };
 type LastChange = { ticket_id: string | null; changed_by: string | null; changed_at: string | null };
 
 const SELECT_COLUMNS =
-  "id, ticket_number, customer_name, product_description, status, assigned_technician, updated_at, part_status";
+  "id, ticket_number, customer_name, customer_phone, product_description, status, assigned_technician, created_at, updated_at, part_status";
 
 // Kartu ditandai "Baru" kalau status terakhir berubah dalam rentang ini …
 const NEW_THRESHOLD_MS = 3 * 60 * 60 * 1000; // 3 jam
 // … dan ditandai butuh perhatian (tanda seru) kalau sudah diam lebih lama dari ini.
 const STALE_THRESHOLD_MS = 2 * 24 * 60 * 60 * 1000; // 2 hari
+
+const HISTORY_LIMIT = 100;
 
 export function TicketBoard({
   initialTickets,
@@ -95,7 +98,7 @@ export function TicketBoard({
         .from("service_tickets")
         .select(SELECT_COLUMNS)
         .order("updated_at", { ascending: true })
-        .limit(300),
+        .limit(500),
       supabase.from("profiles").select("id, full_name"),
       supabase.from("service_ticket_last_change").select("ticket_id, changed_by, changed_at"),
     ]);
@@ -127,9 +130,18 @@ export function TicketBoard({
       (t) =>
         t.ticket_number.toLowerCase().includes(q) ||
         t.customer_name.toLowerCase().includes(q) ||
+        t.customer_phone.toLowerCase().includes(q) ||
         t.product_description.toLowerCase().includes(q),
     );
   }, [tickets, q]);
+
+  const doneAt = (t: Row) => lastChangeById.get(t.id)?.changedAt ?? t.updated_at;
+
+  const activeRows = filtered.filter((t) => t.status !== "CLOSED" && t.status !== "CANCELLED");
+  const historyRows = filtered
+    .filter((t) => t.status === "CLOSED" || t.status === "CANCELLED")
+    .slice()
+    .sort((a, b) => new Date(doneAt(b)).getTime() - new Date(doneAt(a)).getTime());
 
   function exportCsv() {
     startExport(async () => {
@@ -148,8 +160,8 @@ export function TicketBoard({
         <div>
           <h1 className="text-lg font-semibold">Daftar Servis</h1>
           <p className="text-sm text-muted-foreground">
-            {filtered.length}
-            {q ? ` dari ${tickets.length}` : ""} tiket · diperbarui realtime
+            {activeRows.length} aktif · {historyRows.length} selesai
+            {q ? ` (hasil filter dari ${tickets.length})` : ""} · realtime
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -158,7 +170,7 @@ export function TicketBoard({
             <Input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Cari no. tiket, nama, unit…"
+              placeholder="Cari no. tiket, nama, telepon, unit…"
               className="pl-8"
             />
             {query && (
@@ -179,83 +191,77 @@ export function TicketBoard({
         </div>
       </div>
 
-      <div className="flex gap-3 overflow-x-auto pb-2">
+      {/* ── Kanban tiket aktif ─────────────────────────────────────── */}
+      <div className="flex gap-2 overflow-x-auto pb-2">
         {BOARD_COLUMNS.map((status) => {
-          const items = filtered
+          const items = activeRows
             .filter((t) => t.status === status)
             .slice()
-            .sort((a, b) => {
-              const ca = lastChangeById.get(a.id)?.changedAt ?? a.updated_at;
-              const cb = lastChangeById.get(b.id)?.changedAt ?? b.updated_at;
-              // Paling lama belum berubah status di paling atas — itu yang paling butuh perhatian.
-              return new Date(ca).getTime() - new Date(cb).getTime();
-            });
+            .sort((a, b) => new Date(doneAt(a)).getTime() - new Date(doneAt(b)).getTime());
           return (
             <div
               key={status}
-              className="flex w-64 shrink-0 flex-col gap-2 rounded-xl bg-muted/40 p-3"
+              className="flex w-52 shrink-0 flex-col gap-1.5 rounded-xl bg-muted/40 p-2"
             >
-              <div className="flex items-center gap-2 px-1">
+              <div className="flex items-center gap-1.5 px-1">
                 <span className={cn("size-2 rounded-full", DOT_COLOR[status])} />
                 <h2 className="text-xs font-semibold">{TICKET_STATUS_LABEL[status]}</h2>
                 <span className="ml-auto text-xs text-muted-foreground">{items.length}</span>
               </div>
 
-              <div className="flex max-h-[70vh] flex-col gap-2 overflow-y-auto">
+              <div className="flex max-h-[62vh] flex-col gap-1.5 overflow-y-auto">
                 {items.length === 0 ? (
-                  <p className="px-1 text-xs text-muted-foreground">Kosong</p>
+                  <p className="px-1 py-2 text-xs text-muted-foreground">—</p>
                 ) : (
                   items.map((t) => {
                     const change = lastChangeById.get(t.id);
                     const changedAt = change?.changedAt ?? t.updated_at;
-                    const changerName = change?.changedBy ? (nameById.get(change.changedBy) ?? "Staf") : null;
                     const age = Date.now() - new Date(changedAt).getTime();
-                    const isTerminal = status === "CLOSED" || status === "CANCELLED";
                     const isNew = age < NEW_THRESHOLD_MS;
-                    // Tiket yang sudah selesai/dibatalkan tidak perlu ditandai "butuh perhatian".
-                    const isStale = !isTerminal && age > STALE_THRESHOLD_MS;
+                    const isStale = age > STALE_THRESHOLD_MS;
                     const needsPart = t.part_status === "requested";
                     return (
                       <Link
                         key={t.id}
                         href={`/admin/tickets/${t.id}`}
                         className={cn(
-                          "flex flex-col gap-0.5 rounded-lg bg-card p-3 text-xs ring-1 transition-colors hover:bg-muted/60",
-                          isStale ? "ring-rose-400 bg-rose-50/60 dark:bg-rose-950/20" : "ring-foreground/10",
+                          "flex flex-col gap-0.5 rounded-md bg-card px-2 py-1.5 text-xs ring-1 transition-colors hover:bg-muted/60",
+                          isStale
+                            ? "bg-rose-50/60 ring-rose-400 dark:bg-rose-950/20"
+                            : "ring-foreground/10",
                         )}
                       >
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-semibold">{t.ticket_number}</span>
+                        <div className="flex items-center gap-1">
+                          <span className="truncate font-semibold">{t.ticket_number}</span>
+                          {needsPart && (
+                            <Package
+                              className="size-3 shrink-0 text-amber-600"
+                              aria-label="Perlu order sparepart"
+                            />
+                          )}
                           {isNew && (
-                            <span className="rounded-full bg-blue-500/15 px-1.5 py-0.5 text-[10px] font-medium text-blue-600">
+                            <span className="ml-auto shrink-0 rounded-full bg-blue-500/15 px-1 text-[10px] font-medium text-blue-600">
                               Baru
                             </span>
                           )}
                           {isStale && (
-                            <span
-                              className="ml-auto flex items-center gap-0.5 text-[10px] font-medium text-rose-600"
-                              title="Belum ada perubahan status lebih dari 2 hari"
-                            >
-                              <AlertTriangle className="size-3" /> &gt;2 hari
-                            </span>
+                            <AlertTriangle
+                              className={cn("size-3 shrink-0 text-rose-600", !isNew && "ml-auto")}
+                              aria-label="Diam lebih dari 2 hari"
+                            />
                           )}
                         </div>
-                        {needsPart && (
-                          <span className="mt-0.5 inline-flex w-fit items-center gap-1 rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-400">
-                            <Package className="size-3" /> Perlu order sparepart
-                          </span>
-                        )}
-                        <span className="truncate">{t.product_description}</span>
-                        <span className="truncate text-muted-foreground">{t.customer_name}</span>
-                        <span className={cn("mt-1", isStale ? "font-medium text-rose-600" : "text-muted-foreground")}>
-                          {t.assigned_technician
-                            ? (nameById.get(t.assigned_technician) ?? "Staf")
-                            : "Belum ditugaskan"}{" "}
-                          · {sinceShort(changedAt)} lalu
+                        <span className="truncate text-muted-foreground">
+                          {t.product_description}
                         </span>
-                        {changerName && (
-                          <span className="text-muted-foreground">diubah oleh {changerName}</span>
-                        )}
+                        <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                          <span className="truncate">
+                            {t.assigned_technician
+                              ? (nameById.get(t.assigned_technician) ?? "Staf")
+                              : "Belum ditugaskan"}
+                          </span>
+                          <span className="ml-auto shrink-0 tabular-nums">{sinceShort(changedAt)}</span>
+                        </div>
                       </Link>
                     );
                   })
@@ -265,6 +271,72 @@ export function TicketBoard({
           );
         })}
       </div>
+
+      {/* ── Riwayat tiket selesai / dibatalkan ─────────────────────── */}
+      <section className="flex flex-col gap-2">
+        <h2 className="text-sm font-semibold">
+          Riwayat Selesai{" "}
+          <span className="font-normal text-muted-foreground">({historyRows.length})</span>
+        </h2>
+        {historyRows.length === 0 ? (
+          <p className="rounded-xl bg-card p-6 text-center text-sm text-muted-foreground ring-1 ring-foreground/10">
+            Belum ada tiket yang selesai.
+          </p>
+        ) : (
+          <div className="overflow-x-auto rounded-xl ring-1 ring-foreground/10">
+            <table className="w-full min-w-[680px] text-sm">
+              <thead className="bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
+                <tr>
+                  <th className="px-3 py-2 text-left font-medium">Masuk</th>
+                  <th className="px-3 py-2 text-left font-medium">Selesai</th>
+                  <th className="px-3 py-2 text-left font-medium">No. Servis</th>
+                  <th className="px-3 py-2 text-left font-medium">Nama</th>
+                  <th className="px-3 py-2 text-left font-medium">Telepon</th>
+                  <th className="px-3 py-2 text-left font-medium">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {historyRows.slice(0, HISTORY_LIMIT).map((t) => (
+                  <tr key={t.id} className="border-t border-foreground/5 hover:bg-muted/40">
+                    <td className="whitespace-nowrap px-3 py-2 text-muted-foreground">
+                      {formatDateWIB(t.created_at)}
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-2 text-muted-foreground">
+                      {formatDateWIB(doneAt(t))}
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-2 font-medium">
+                      <Link href={`/admin/tickets/${t.id}`} className="hover:underline">
+                        {t.ticket_number}
+                      </Link>
+                    </td>
+                    <td className="px-3 py-2">{t.customer_name}</td>
+                    <td className="whitespace-nowrap px-3 py-2 text-muted-foreground">
+                      {t.customer_phone}
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-2">
+                      <span
+                        className={cn(
+                          "inline-flex items-center gap-1.5 text-xs",
+                          t.status === "CANCELLED" ? "text-rose-600" : "text-emerald-600",
+                        )}
+                      >
+                        <span className={cn("size-1.5 rounded-full", DOT_COLOR[t.status])} />
+                        {TICKET_STATUS_LABEL[t.status]}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {historyRows.length > HISTORY_LIMIT && (
+              <p className="border-t border-foreground/5 px-3 py-2 text-center text-xs text-muted-foreground">
+                Menampilkan {HISTORY_LIMIT} terbaru dari {historyRows.length}. Gunakan pencarian
+                atau Ekspor CSV untuk data lengkap.
+              </p>
+            )}
+          </div>
+        )}
+      </section>
     </div>
   );
 }
