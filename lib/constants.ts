@@ -52,19 +52,21 @@ export const TICKET_STATUS_LABEL: Record<TicketStatus, string> = {
 
 /**
  * Transisi status yang diizinkan untuk TEKNISI — murni MAJU, tidak ada
- * jalur mundur/lateral (mis. QC_TESTING tidak boleh balik ke IN_REPAIR).
- * Koreksi/pembalikan status hanya lewat override OWNER (lihat
- * lib/actions/tickets.ts -> updateTicketStatus). Role admin lebih sempit
- * lagi dari peta ini: cuma boleh READY_FOR_PICKUP -> CLOSED, plus dua
- * transisi khusus alur sparepart (lib/actions/spareparts.ts) yang tidak
- * lewat peta ini sama sekali: * -> WAITING_PART dan WAITING_PART -> PART_ARRIVED.
+ * jalur mundur/lateral. Koreksi/pembalikan status hanya lewat override OWNER
+ * (lihat lib/actions/tickets.ts -> updateTicketStatus).
+ *
+ * Alur teknisi BERAKHIR di IN_REPAIR / PART_INSTALLING — Uji QC (QC_TESTING)
+ * dijalankan ADMIN, bukan teknisi (lihat TICKET_STATUS_FLOW_ADMIN). Jadi dari
+ * PART_INSTALLING & IN_REPAIR teknisi cuma bisa membatalkan; admin yang
+ * memindahkan ke QC_TESTING.
  *
  * WAITING_PART bukan wewenang teknisi (kosong di bawah) — teknisi cuma bisa
  * MENGAJUKAN permintaan sparepart (requestSparepart), lalu admin yang
  * memesan & menandai tiba. Begitu tiba (PART_ARRIVED), giliran teknisi lagi
  * yang pindah ke PART_INSTALLING begitu benar-benar mulai memasang — supaya
  * tidak ada teknisi lain yang salah kira unit sudah ditangani padahal cuma
- * partnya yang baru sampai.
+ * partnya yang baru sampai. Dari PART_INSTALLING teknisi juga bisa eskalasi
+ * balik ke WAITING_PART (escalateForPart) — di luar peta ini.
  */
 export const TICKET_STATUS_FLOW: Record<TicketStatus, TicketStatus[]> = {
   INTAKE: ["DIAGNOSING", "CANCELLED"],
@@ -72,12 +74,25 @@ export const TICKET_STATUS_FLOW: Record<TicketStatus, TicketStatus[]> = {
   WAITING_APPROVAL: ["IN_REPAIR", "CANCELLED"],
   WAITING_PART: [],
   PART_ARRIVED: ["PART_INSTALLING", "CANCELLED"],
-  PART_INSTALLING: ["QC_TESTING", "CANCELLED"],
-  IN_REPAIR: ["QC_TESTING", "CANCELLED"],
-  QC_TESTING: ["READY_FOR_PICKUP", "CANCELLED"],
-  READY_FOR_PICKUP: ["CLOSED"],
+  PART_INSTALLING: ["CANCELLED"],
+  IN_REPAIR: ["CANCELLED"],
+  QC_TESTING: [],
+  READY_FOR_PICKUP: [],
   CLOSED: [],
   CANCELLED: [],
+};
+
+/**
+ * Transisi yang boleh dilakukan ADMIN (meja depan). Admin menjalankan Uji QC:
+ * dari IN_REPAIR / PART_INSTALLING -> QC_TESTING, lalu LULUS (READY_FOR_PICKUP)
+ * atau TOLAK -> kembali ke DIAGNOSING (mulai dari awal, alasan wajib). Plus
+ * serah-terima unit READY_FOR_PICKUP -> CLOSED.
+ */
+export const TICKET_STATUS_FLOW_ADMIN: Partial<Record<TicketStatus, TicketStatus[]>> = {
+  IN_REPAIR: ["QC_TESTING"],
+  PART_INSTALLING: ["QC_TESTING"],
+  QC_TESTING: ["READY_FOR_PICKUP", "DIAGNOSING"],
+  READY_FOR_PICKUP: ["CLOSED"],
 };
 
 // ── Alur permintaan sparepart ──────────────────────────────────────

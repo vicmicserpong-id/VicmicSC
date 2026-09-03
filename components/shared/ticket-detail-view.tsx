@@ -12,7 +12,6 @@ import {
   Pencil,
   Trash2,
   Package,
-  Printer,
   AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -32,6 +31,7 @@ import {
 } from "@/components/ui/dialog";
 import {
   TICKET_STATUS_FLOW,
+  TICKET_STATUS_FLOW_ADMIN,
   TICKET_STATUS_LABEL,
   WARRANTY_LABEL,
   ACCESSORY_LABEL,
@@ -110,17 +110,16 @@ export function TicketDetailView({
     ticket.status,
     ...logs.map((l) => l.new_status),
   ]);
-  // Owner: bebas pindah ke status apa pun. Admin: cuma boleh menyerahkan unit
-  // (Siap Diambil → Selesai) — tidak ada opsi lain. Teknisi: alur maju TICKET_STATUS_FLOW.
+  // Owner: bebas pindah ke status apa pun. Admin: Uji QC (Perbaikan/Pemasangan →
+  // QC → Lulus/Tolak) + serah-terima unit. Teknisi: alur maju TICKET_STATUS_FLOW.
   const nextOptions =
     role === "owner"
       ? ALL_STATUSES.filter((s) => s !== ticket.status)
       : role === "admin"
-        ? ticket.status === "READY_FOR_PICKUP"
-          ? (["CLOSED"] as TicketStatus[])
-          : []
+        ? (TICKET_STATUS_FLOW_ADMIN[ticket.status] ?? [])
         : (TICKET_STATUS_FLOW[ticket.status] ?? []).filter((s) => !HIDDEN_TARGETS.includes(s));
   const notesRequired = role === "owner";
+  const isQcReject = (t: TicketStatus) => ticket.status === "QC_TESTING" && t === "DIAGNOSING";
 
   function pick(t: TicketStatus) {
     setTarget(t);
@@ -144,8 +143,12 @@ export function TicketDetailView({
 
   function submit() {
     if (!target || !req) return;
-    if (notesRequired && !notes.trim()) {
-      toast.error("Wajib isi catatan alasan perubahan status.");
+    if ((notesRequired || isQcReject(target)) && !notes.trim()) {
+      toast.error(
+        isQcReject(target)
+          ? "Isi alasan penolakan saat Uji QC."
+          : "Wajib isi catatan alasan perubahan status.",
+      );
       return;
     }
     if (req.diagnosisNotes && !diagnosisNotes.trim()) {
@@ -275,13 +278,6 @@ export function TicketDetailView({
           <TicketStatusBadge status={ticket.status} />
           {mode === "admin" && (
             <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                render={<Link href={`/admin/tickets/${ticket.id}/print`} target="_blank" />}
-              >
-                <Printer className="size-3.5" /> Cetak Label
-              </Button>
               <Button variant="outline" size="sm" render={<Link href={`/admin/tickets/${ticket.id}/edit`} />}>
                 <Pencil className="size-3.5" /> Edit
               </Button>
@@ -331,16 +327,18 @@ export function TicketDetailView({
             <span className="font-normal text-muted-foreground">(bebas, owner)</span>
           )}
           {role === "admin" && (
-            <span className="font-normal text-muted-foreground">(hanya serah-terima unit)</span>
+            <span className="font-normal text-muted-foreground">(Uji QC &amp; serah-terima)</span>
           )}
         </h2>
         {nextOptions.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             {role === "admin"
-              ? 'Belum bisa diserahkan — status unit belum "Siap Diambil". Untuk koreksi status, hubungi owner.'
+              ? "Belum ada aksi meja depan pada status ini (Uji QC muncul saat unit selesai diperbaiki/dipasang). Untuk koreksi status, hubungi owner."
               : ticket.status === "WAITING_PART"
                 ? "Menunggu admin memesan/menerima sparepart — belum ada aksi untuk teknisi di sini."
-                : "Tidak ada transisi lanjutan dari status ini."}
+                : ticket.status === "IN_REPAIR" || ticket.status === "PART_INSTALLING"
+                  ? "Pekerjaan teknisi selesai di tahap ini. Uji QC dijalankan admin."
+                  : "Tidak ada transisi lanjutan dari status ini."}
           </p>
         ) : (
           <div className="flex flex-wrap gap-2">
@@ -350,8 +348,13 @@ export function TicketDetailView({
                 variant={target === t ? "default" : "outline"}
                 size="sm"
                 onClick={() => pick(t)}
+                className={
+                  isQcReject(t)
+                    ? "border-destructive text-destructive hover:bg-destructive/10"
+                    : undefined
+                }
               >
-                {TICKET_STATUS_LABEL[t]}
+                {isQcReject(t) ? "Tolak QC → Diagnosa" : TICKET_STATUS_LABEL[t]}
               </Button>
             ))}
           </div>
@@ -385,7 +388,12 @@ export function TicketDetailView({
             )}
             <Field>
               <FieldLabel htmlFor="nt">
-                Catatan {notesRequired ? "(wajib — alasan perubahan)" : "(opsional)"}
+                Catatan{" "}
+                {isQcReject(target)
+                  ? "(wajib — alasan penolakan QC)"
+                  : notesRequired
+                    ? "(wajib — alasan perubahan)"
+                    : "(opsional)"}
               </FieldLabel>
               <Textarea
                 id="nt"
@@ -397,7 +405,9 @@ export function TicketDetailView({
             <div className="flex gap-2">
               <Button onClick={submit} disabled={pending}>
                 {pending ? <Loader2 className="animate-spin" /> : <Check />}
-                Konfirmasi → {TICKET_STATUS_LABEL[target]}
+                {isQcReject(target)
+                  ? "Konfirmasi Tolak QC → Diagnosa"
+                  : `Konfirmasi → ${TICKET_STATUS_LABEL[target]}`}
               </Button>
               <Button variant="ghost" onClick={() => setTarget(null)} disabled={pending}>
                 Batal

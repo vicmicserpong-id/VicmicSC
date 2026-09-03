@@ -4,7 +4,12 @@ import { revalidatePath } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
 import { sendEmail, readyEmailHtml } from "@/lib/email";
-import { TICKET_STATUS_FLOW, type AppRole, type TicketStatus } from "@/lib/constants";
+import {
+  TICKET_STATUS_FLOW,
+  TICKET_STATUS_FLOW_ADMIN,
+  type AppRole,
+  type TicketStatus,
+} from "@/lib/constants";
 import { todayWIB } from "@/lib/format";
 import type { Database } from "@/lib/database.types";
 
@@ -75,10 +80,14 @@ export async function updateTicketStatus(input: StatusChange) {
       throw new Error("Wajib isi catatan alasan perubahan status.");
     }
   } else if (role === "admin") {
-    if (input.from !== "READY_FOR_PICKUP" || input.to !== "CLOSED") {
+    const allowed = TICKET_STATUS_FLOW_ADMIN[input.from] ?? [];
+    if (!allowed.includes(input.to)) {
       throw new Error(
-        'Admin hanya bisa mengubah status "Siap Diambil" menjadi "Selesai/Diambil". Untuk koreksi status lain, hubungi owner.',
+        "Admin hanya bisa: Perbaikan/Pemasangan → Uji QC, Uji QC → Siap Diambil atau Tolak (kembali ke Diagnosa), dan Siap Diambil → Selesai. Untuk koreksi status lain, hubungi owner.",
       );
+    }
+    if (input.from === "QC_TESTING" && input.to === "DIAGNOSING" && !input.notes?.trim()) {
+      throw new Error("Wajib isi alasan penolakan saat Uji QC.");
     }
   } else {
     if (input.from === "INTAKE") {
@@ -112,7 +121,13 @@ export async function updateTicketStatus(input: StatusChange) {
     previous_status: input.from,
     new_status: input.to,
     changed_by: user.id,
-    notes: input.notes?.trim() || (input.to === "CLOSED" ? "Unit diserahkan ke pelanggan." : null),
+    notes:
+      input.notes?.trim() ||
+      (input.to === "CLOSED"
+        ? "Unit diserahkan ke pelanggan."
+        : input.from === "QC_TESTING" && input.to === "DIAGNOSING"
+          ? "Ditolak saat Uji QC."
+          : null),
   });
 
   // Tutup antrean pengambilan terkait bila ada (samakan dgn alur /admin/pickup).
