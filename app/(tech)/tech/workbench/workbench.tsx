@@ -11,7 +11,8 @@ import { Input } from "@/components/ui/input";
 import { TicketStatusBadge, WarrantyBadge } from "@/components/shared/status-badge";
 import { createClient } from "@/lib/supabase/client";
 import { sinceShort } from "@/lib/format";
-import type { TicketStatus, WarrantyStatus } from "@/lib/constants";
+import { TICKET_STATUS_LABEL, type TicketStatus, type WarrantyStatus } from "@/lib/constants";
+import { cn } from "@/lib/utils";
 import { pullNextTicket } from "@/lib/actions/tickets";
 
 type Row = {
@@ -29,9 +30,23 @@ type Row = {
 
 type Profile = { id: string; full_name: string | null };
 type LastChange = { ticket_id: string | null; changed_by: string | null };
+type OwnerTab = "mine" | "others";
+type StatusFilter = TicketStatus | "all";
 
 const SELECT_COLUMNS =
   "id, ticket_number, customer_name, product_description, status, warranty_status, complaint_description, assigned_technician, created_at, updated_at";
+
+// Urutan status aktif di workbench (INTAKE, CLOSED, CANCELLED tidak masuk daftar ini).
+const STATUS_ORDER: TicketStatus[] = [
+  "DIAGNOSING",
+  "WAITING_APPROVAL",
+  "WAITING_PART",
+  "PART_ARRIVED",
+  "PART_INSTALLING",
+  "IN_REPAIR",
+  "QC_TESTING",
+  "READY_FOR_PICKUP",
+];
 
 export function Workbench({
   meId,
@@ -52,6 +67,8 @@ export function Workbench({
   const [profiles, setProfiles] = useState<Profile[]>(initialProfiles);
   const [lastChange, setLastChange] = useState<LastChange[]>(initialLastChange);
   const [query, setQuery] = useState("");
+  const [owner, setOwner] = useState<OwnerTab>("mine");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [pending, startTransition] = useTransition();
   const supabaseRef = useRef<ReturnType<typeof createClient> | null>(null);
   if (!supabaseRef.current) supabaseRef.current = createClient();
@@ -100,7 +117,7 @@ export function Workbench({
   }, [supabase, refetch]);
 
   const q = query.trim().toLowerCase();
-  const filtered = useMemo(() => {
+  const searched = useMemo(() => {
     if (!q) return tickets;
     return tickets.filter(
       (t) =>
@@ -109,6 +126,32 @@ export function Workbench({
         t.product_description.toLowerCase().includes(q),
     );
   }, [tickets, q]);
+
+  const mine = useMemo(
+    () => searched.filter((t) => t.assigned_technician === meId),
+    [searched, meId],
+  );
+  const others = useMemo(
+    () => searched.filter((t) => t.assigned_technician !== meId),
+    [searched, meId],
+  );
+
+  const ownerList = owner === "mine" ? mine : others;
+
+  // Hitung jumlah per status untuk chip filter (dari tab yang sedang aktif).
+  const statusCounts = useMemo(() => {
+    const c = new Map<TicketStatus, number>();
+    for (const t of ownerList) c.set(t.status, (c.get(t.status) ?? 0) + 1);
+    return c;
+  }, [ownerList]);
+
+  const visible =
+    statusFilter === "all" ? ownerList : ownerList.filter((t) => t.status === statusFilter);
+
+  function switchOwner(next: OwnerTab) {
+    setOwner(next);
+    setStatusFilter("all");
+  }
 
   function pull() {
     startTransition(async () => {
@@ -128,7 +171,7 @@ export function Workbench({
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-lg font-semibold">Workbench</h1>
@@ -170,18 +213,67 @@ export function Workbench({
         )}
       </div>
 
+      {/* Tab: tarikan sendiri vs teknisi lain */}
+      <div className="inline-flex w-fit rounded-lg bg-muted p-[3px] text-sm">
+        <button
+          type="button"
+          onClick={() => switchOwner("mine")}
+          className={cn(
+            "rounded-md px-3 py-1 font-medium transition-colors",
+            owner === "mine"
+              ? "bg-background text-foreground shadow-sm"
+              : "text-foreground/60 hover:text-foreground",
+          )}
+        >
+          Tarikan Saya <span className="tabular-nums">({mine.length})</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => switchOwner("others")}
+          className={cn(
+            "rounded-md px-3 py-1 font-medium transition-colors",
+            owner === "others"
+              ? "bg-background text-foreground shadow-sm"
+              : "text-foreground/60 hover:text-foreground",
+          )}
+        >
+          Teknisi Lain <span className="tabular-nums">({others.length})</span>
+        </button>
+      </div>
+
+      {/* Filter status */}
+      <div className="flex flex-wrap gap-1.5">
+        <FilterChip
+          active={statusFilter === "all"}
+          onClick={() => setStatusFilter("all")}
+          label="Semua"
+          count={ownerList.length}
+        />
+        {STATUS_ORDER.filter((s) => (statusCounts.get(s) ?? 0) > 0).map((s) => (
+          <FilterChip
+            key={s}
+            active={statusFilter === s}
+            onClick={() => setStatusFilter(s)}
+            label={TICKET_STATUS_LABEL[s]}
+            count={statusCounts.get(s) ?? 0}
+          />
+        ))}
+      </div>
+
       <div className="flex flex-col gap-2">
-        {filtered.length === 0 ? (
+        {visible.length === 0 ? (
           <div className="flex flex-col items-center gap-2 rounded-xl bg-card p-10 text-center ring-1 ring-foreground/10">
             <Inbox className="size-8 text-muted-foreground" />
             <p className="text-sm text-muted-foreground">
-              {tickets.length === 0
-                ? 'Belum ada tiket aktif. Tekan "Tarik Tiket Berikutnya" untuk mulai.'
-                : "Tidak ada tiket yang cocok dengan pencarian."}
+              {ownerList.length === 0
+                ? owner === "mine"
+                  ? 'Belum ada tiket yang kamu tangani. Tekan "Tarik Tiket Berikutnya" untuk mulai.'
+                  : "Belum ada tiket aktif milik teknisi lain."
+                : "Tidak ada tiket pada status ini."}
             </p>
           </div>
         ) : (
-          filtered.map((row) => {
+          visible.map((row) => {
             const assignedName = row.assigned_technician
               ? nameById.get(row.assigned_technician)
               : null;
@@ -221,5 +313,32 @@ export function Workbench({
         )}
       </div>
     </div>
+  );
+}
+
+function FilterChip({
+  active,
+  onClick,
+  label,
+  count,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+  count: number;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "rounded-full px-2.5 py-1 text-xs font-medium ring-1 transition-colors",
+        active
+          ? "bg-foreground text-background ring-foreground"
+          : "bg-card text-muted-foreground ring-foreground/15 hover:bg-muted",
+      )}
+    >
+      {label} <span className="tabular-nums opacity-70">{count}</span>
+    </button>
   );
 }
