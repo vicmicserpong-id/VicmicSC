@@ -10,7 +10,7 @@ export type AppRole = Database["public"]["Enums"]["app_role"];
 export const APP_ROLES: AppRole[] = ["admin", "technician", "owner"];
 
 export const ROLE_LABEL: Record<AppRole, string> = {
-  admin: "Admin Meja Depan",
+  admin: "Admin",
   technician: "Teknisi",
   owner: "Owner",
 };
