@@ -2,12 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { Search, X, Download, Loader2 } from "lucide-react";
+import { Search, X, Download, Loader2, AlertTriangle, Package } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { TICKET_STATUS_LABEL, type TicketStatus } from "@/lib/constants";
+import { TICKET_STATUS_LABEL, type TicketStatus, type PartRequestStatus } from "@/lib/constants";
 import { sinceShort, todayWIB } from "@/lib/format";
 import { downloadTextFile } from "@/lib/download";
 import { createClient } from "@/lib/supabase/client";
@@ -48,13 +48,19 @@ type Row = {
   status: TicketStatus;
   assigned_technician: string | null;
   updated_at: string;
+  part_status: PartRequestStatus;
 };
 
 type Profile = { id: string; full_name: string | null };
-type LastChange = { ticket_id: string | null; changed_by: string | null };
+type LastChange = { ticket_id: string | null; changed_by: string | null; changed_at: string | null };
 
 const SELECT_COLUMNS =
-  "id, ticket_number, customer_name, product_description, status, assigned_technician, updated_at";
+  "id, ticket_number, customer_name, product_description, status, assigned_technician, updated_at, part_status";
+
+// Kartu ditandai "Baru" kalau status terakhir berubah dalam rentang ini …
+const NEW_THRESHOLD_MS = 3 * 60 * 60 * 1000; // 3 jam
+// … dan ditandai butuh perhatian (tanda seru) kalau sudah diam lebih lama dari ini.
+const STALE_THRESHOLD_MS = 2 * 24 * 60 * 60 * 1000; // 2 hari
 
 export function TicketBoard({
   initialTickets,
@@ -77,8 +83,8 @@ export function TicketBoard({
   const nameById = new Map(profiles.map((p) => [p.id, p.full_name ?? "Staf"]));
   const lastChangeById = new Map(
     lastChange
-      .filter((l): l is { ticket_id: string; changed_by: string } => !!l.ticket_id && !!l.changed_by)
-      .map((l) => [l.ticket_id, l.changed_by]),
+      .filter((l): l is { ticket_id: string; changed_by: string | null; changed_at: string | null } => !!l.ticket_id)
+      .map((l) => [l.ticket_id, { changedBy: l.changed_by, changedAt: l.changed_at }]),
   );
 
   const refetch = useCallback(async () => {
@@ -89,7 +95,7 @@ export function TicketBoard({
         .order("updated_at", { ascending: true })
         .limit(300),
       supabase.from("profiles").select("id, full_name"),
-      supabase.from("service_ticket_last_change").select("ticket_id, changed_by"),
+      supabase.from("service_ticket_last_change").select("ticket_id, changed_by, changed_at"),
     ]);
     setTickets((data as Row[]) ?? []);
     if (profs) setProfiles(profs);
@@ -173,7 +179,15 @@ export function TicketBoard({
 
       <div className="flex gap-3 overflow-x-auto pb-2">
         {BOARD_COLUMNS.map((status) => {
-          const items = filtered.filter((t) => t.status === status);
+          const items = filtered
+            .filter((t) => t.status === status)
+            .slice()
+            .sort((a, b) => {
+              const ca = lastChangeById.get(a.id)?.changedAt ?? a.updated_at;
+              const cb = lastChangeById.get(b.id)?.changedAt ?? b.updated_at;
+              // Paling lama belum berubah status di paling atas — itu yang paling butuh perhatian.
+              return new Date(ca).getTime() - new Date(cb).getTime();
+            });
           return (
             <div
               key={status}
@@ -190,22 +204,52 @@ export function TicketBoard({
                   <p className="px-1 text-xs text-muted-foreground">Kosong</p>
                 ) : (
                   items.map((t) => {
-                    const changerId = lastChangeById.get(t.id);
-                    const changerName = changerId ? (nameById.get(changerId) ?? "Staf") : null;
+                    const change = lastChangeById.get(t.id);
+                    const changedAt = change?.changedAt ?? t.updated_at;
+                    const changerName = change?.changedBy ? (nameById.get(change.changedBy) ?? "Staf") : null;
+                    const age = Date.now() - new Date(changedAt).getTime();
+                    const isTerminal = status === "CLOSED" || status === "CANCELLED";
+                    const isNew = age < NEW_THRESHOLD_MS;
+                    // Tiket yang sudah selesai/dibatalkan tidak perlu ditandai "butuh perhatian".
+                    const isStale = !isTerminal && age > STALE_THRESHOLD_MS;
+                    const needsPart = t.part_status === "requested";
                     return (
                       <Link
                         key={t.id}
                         href={`/admin/tickets/${t.id}`}
-                        className="flex flex-col gap-0.5 rounded-lg bg-card p-3 text-xs ring-1 ring-foreground/10 transition-colors hover:bg-muted/60"
+                        className={cn(
+                          "flex flex-col gap-0.5 rounded-lg bg-card p-3 text-xs ring-1 transition-colors hover:bg-muted/60",
+                          isStale ? "ring-rose-400 bg-rose-50/60 dark:bg-rose-950/20" : "ring-foreground/10",
+                        )}
                       >
-                        <span className="font-semibold">{t.ticket_number}</span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-semibold">{t.ticket_number}</span>
+                          {isNew && (
+                            <span className="rounded-full bg-blue-500/15 px-1.5 py-0.5 text-[10px] font-medium text-blue-600">
+                              Baru
+                            </span>
+                          )}
+                          {isStale && (
+                            <span
+                              className="ml-auto flex items-center gap-0.5 text-[10px] font-medium text-rose-600"
+                              title="Belum ada perubahan status lebih dari 2 hari"
+                            >
+                              <AlertTriangle className="size-3" /> &gt;2 hari
+                            </span>
+                          )}
+                        </div>
+                        {needsPart && (
+                          <span className="mt-0.5 inline-flex w-fit items-center gap-1 rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-400">
+                            <Package className="size-3" /> Perlu order sparepart
+                          </span>
+                        )}
                         <span className="truncate">{t.product_description}</span>
                         <span className="truncate text-muted-foreground">{t.customer_name}</span>
-                        <span className="mt-1 text-muted-foreground">
+                        <span className={cn("mt-1", isStale ? "font-medium text-rose-600" : "text-muted-foreground")}>
                           {t.assigned_technician
                             ? (nameById.get(t.assigned_technician) ?? "Staf")
                             : "Belum ditugaskan"}{" "}
-                          · {sinceShort(t.updated_at)} lalu
+                          · {sinceShort(changedAt)} lalu
                         </span>
                         {changerName && (
                           <span className="text-muted-foreground">diubah oleh {changerName}</span>
