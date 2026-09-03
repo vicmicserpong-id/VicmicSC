@@ -22,6 +22,7 @@ type Row = {
   product_description: string;
   status: TicketStatus;
   warranty_status: WarrantyStatus;
+  serial_number: string | null;
   complaint_description: string;
   assigned_technician: string | null;
   created_at: string;
@@ -34,7 +35,7 @@ type OwnerTab = "mine" | "others";
 type StatusFilter = TicketStatus | "all";
 
 const SELECT_COLUMNS =
-  "id, ticket_number, customer_name, product_description, status, warranty_status, complaint_description, assigned_technician, created_at, updated_at";
+  "id, ticket_number, customer_name, product_description, status, warranty_status, serial_number, complaint_description, assigned_technician, created_at, updated_at";
 
 // Urutan status aktif di workbench (INTAKE, CLOSED, CANCELLED tidak masuk daftar ini).
 const STATUS_ORDER: TicketStatus[] = [
@@ -123,7 +124,8 @@ export function Workbench({
       (t) =>
         t.ticket_number.toLowerCase().includes(q) ||
         t.customer_name.toLowerCase().includes(q) ||
-        t.product_description.toLowerCase().includes(q),
+        t.product_description.toLowerCase().includes(q) ||
+        (t.serial_number?.toLowerCase().includes(q) ?? false),
     );
   }, [tickets, q]);
 
@@ -198,7 +200,7 @@ export function Workbench({
         <Input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Cari no. tiket, nama, unit…"
+          placeholder="Cari no. tiket, nama, unit, SN…"
           className="pl-8"
         />
         {query && (
