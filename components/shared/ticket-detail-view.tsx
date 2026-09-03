@@ -67,8 +67,16 @@ function needs(current: TicketStatus, target: TicketStatus) {
   return {
     // Catatan diagnosa dicatat setiap kali meninggalkan status Diagnosa, apa pun tujuannya.
     diagnosisNotes: current === "DIAGNOSING",
-    qcNotes: target === "QC_TESTING" || target === "READY_FOR_PICKUP",
+    // Catatan hasil QC diisi admin saat MELULUSKAN unit (bukan saat teknisi bilang "selesai").
+    qcNotes: current === "QC_TESTING" && target === "READY_FOR_PICKUP",
   };
+}
+
+/** Label tombol yang lebih enak dibaca untuk transisi tertentu. */
+function transitionLabel(from: TicketStatus, to: TicketStatus): string {
+  if (to === "QC_TESTING" && from === "PART_INSTALLING") return "Pemasangan Selesai → Uji QC";
+  if (to === "QC_TESTING" && from === "IN_REPAIR") return "Perbaikan Selesai → Uji QC";
+  return TICKET_STATUS_LABEL[to];
 }
 
 export function TicketDetailView({
@@ -333,14 +341,12 @@ export function TicketDetailView({
         {nextOptions.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             {role === "admin"
-              ? "Belum ada aksi meja depan pada status ini (Uji QC muncul saat unit selesai diperbaiki/dipasang). Untuk koreksi status, hubungi owner."
+              ? "Belum ada aksi meja depan di sini. Uji QC muncul setelah teknisi menandai pengerjaan selesai. Untuk koreksi status lain, hubungi owner."
               : ticket.status === "WAITING_PART"
                 ? "Menunggu admin memesan/menerima sparepart — belum ada aksi untuk teknisi di sini."
-                : ticket.status === "IN_REPAIR" || ticket.status === "PART_INSTALLING"
-                  ? "Pekerjaan teknisi selesai di tahap ini. Uji QC dijalankan admin."
-                  : ticket.status === "QC_TESTING"
-                    ? "Sedang/menunggu Uji QC oleh admin."
-                    : "Tidak ada transisi lanjutan dari status ini."}
+                : ticket.status === "QC_TESTING"
+                  ? "Menunggu Uji QC oleh admin."
+                  : "Tidak ada transisi lanjutan dari status ini."}
           </p>
         ) : (
           <div className="flex flex-wrap gap-2">
@@ -356,7 +362,7 @@ export function TicketDetailView({
                     : undefined
                 }
               >
-                {isQcReject(t) ? "Tolak QC → Diagnosa" : TICKET_STATUS_LABEL[t]}
+                {isQcReject(t) ? "Tolak QC → Diagnosa" : transitionLabel(ticket.status, t)}
               </Button>
             ))}
           </div>
@@ -409,7 +415,7 @@ export function TicketDetailView({
                 {pending ? <Loader2 className="animate-spin" /> : <Check />}
                 {isQcReject(target)
                   ? "Konfirmasi Tolak QC → Diagnosa"
-                  : `Konfirmasi → ${TICKET_STATUS_LABEL[target]}`}
+                  : `Konfirmasi: ${transitionLabel(ticket.status, target)}`}
               </Button>
               <Button variant="ghost" onClick={() => setTarget(null)} disabled={pending}>
                 Batal

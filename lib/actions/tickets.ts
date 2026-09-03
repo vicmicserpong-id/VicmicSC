@@ -83,7 +83,7 @@ export async function updateTicketStatus(input: StatusChange) {
     const allowed = TICKET_STATUS_FLOW_ADMIN[input.from] ?? [];
     if (!allowed.includes(input.to)) {
       throw new Error(
-        "Admin hanya bisa: Perbaikan/Pemasangan → Uji QC, Uji QC → Siap Diambil atau Tolak (kembali ke Diagnosa), dan Siap Diambil → Selesai. Untuk koreksi status lain, hubungi owner.",
+        "Admin hanya bisa: Uji QC → Siap Diambil atau Tolak (kembali ke Diagnosa), dan Siap Diambil → Selesai. Untuk koreksi status lain, hubungi owner.",
       );
     }
     if (input.from === "QC_TESTING" && input.to === "DIAGNOSING" && !input.notes?.trim()) {
@@ -146,6 +146,29 @@ export async function updateTicketStatus(input: StatusChange) {
         .in("status", ["waiting", "serving"]);
     }
     revalidatePath("/admin/queue");
+  }
+
+  // Teknisi selesai mengerjakan -> minta admin menjalankan Uji QC (best-effort).
+  if (input.to === "QC_TESTING") {
+    try {
+      const { data: t } = await supabase
+        .from("service_tickets")
+        .select("ticket_number, product_description")
+        .eq("id", input.ticketId)
+        .single();
+      if (t) {
+        await supabase.from("notifications").insert({
+          target_roles: ["admin", "owner"],
+          type: "qc_requested",
+          title: "Perlu Uji QC",
+          body: `${t.ticket_number} — ${t.product_description}. Pengerjaan selesai, siap di-QC.`,
+          link: `/admin/tickets/${input.ticketId}`,
+          ticket_id: input.ticketId,
+        });
+      }
+    } catch (e) {
+      console.error("[notify qc] gagal buat notifikasi:", e);
+    }
   }
 
   // Notifikasi "siap diambil" ke pelanggan (best-effort — tidak menggagalkan aksi).

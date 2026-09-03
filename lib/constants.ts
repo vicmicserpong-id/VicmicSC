@@ -55,10 +55,10 @@ export const TICKET_STATUS_LABEL: Record<TicketStatus, string> = {
  * jalur mundur/lateral. Koreksi/pembalikan status hanya lewat override OWNER
  * (lihat lib/actions/tickets.ts -> updateTicketStatus).
  *
- * Alur teknisi BERAKHIR di IN_REPAIR / PART_INSTALLING — Uji QC (QC_TESTING)
- * dijalankan ADMIN, bukan teknisi (lihat TICKET_STATUS_FLOW_ADMIN). Jadi dari
- * PART_INSTALLING & IN_REPAIR teknisi cuma bisa membatalkan; admin yang
- * memindahkan ke QC_TESTING.
+ * Teknisi menandai pengerjaannya SELESAI dengan pindah IN_REPAIR / PART_INSTALLING
+ * -> QC_TESTING (tombol "Perbaikan/Pemasangan Selesai"). Perpindahan itu memicu
+ * notifikasi ke admin untuk menjalankan Uji QC. Teknisi TIDAK meluluskan/menolak
+ * QC sendiri — itu wewenang admin (lihat TICKET_STATUS_FLOW_ADMIN).
  *
  * WAITING_PART bukan wewenang teknisi (kosong di bawah) — teknisi cuma bisa
  * MENGAJUKAN permintaan sparepart (requestSparepart), lalu admin yang
@@ -74,8 +74,8 @@ export const TICKET_STATUS_FLOW: Record<TicketStatus, TicketStatus[]> = {
   WAITING_APPROVAL: ["IN_REPAIR", "CANCELLED"],
   WAITING_PART: [],
   PART_ARRIVED: ["PART_INSTALLING", "CANCELLED"],
-  PART_INSTALLING: ["CANCELLED"],
-  IN_REPAIR: ["CANCELLED"],
+  PART_INSTALLING: ["QC_TESTING", "CANCELLED"],
+  IN_REPAIR: ["QC_TESTING", "CANCELLED"],
   QC_TESTING: [],
   READY_FOR_PICKUP: [],
   CLOSED: [],
@@ -83,14 +83,12 @@ export const TICKET_STATUS_FLOW: Record<TicketStatus, TicketStatus[]> = {
 };
 
 /**
- * Transisi yang boleh dilakukan ADMIN (meja depan). Admin menjalankan Uji QC:
- * dari IN_REPAIR / PART_INSTALLING -> QC_TESTING, lalu LULUS (READY_FOR_PICKUP)
- * atau TOLAK -> kembali ke DIAGNOSING (mulai dari awal, alasan wajib). Plus
- * serah-terima unit READY_FOR_PICKUP -> CLOSED.
+ * Transisi yang boleh dilakukan ADMIN (meja depan). Setelah teknisi menandai
+ * pengerjaan selesai (status QC_TESTING), admin menjalankan Uji QC: LULUS ->
+ * READY_FOR_PICKUP, atau TOLAK -> kembali ke DIAGNOSING (mulai dari awal,
+ * alasan wajib). Plus serah-terima unit READY_FOR_PICKUP -> CLOSED.
  */
 export const TICKET_STATUS_FLOW_ADMIN: Partial<Record<TicketStatus, TicketStatus[]>> = {
-  IN_REPAIR: ["QC_TESTING"],
-  PART_INSTALLING: ["QC_TESTING"],
   QC_TESTING: ["READY_FOR_PICKUP", "DIAGNOSING"],
   READY_FOR_PICKUP: ["CLOSED"],
 };
