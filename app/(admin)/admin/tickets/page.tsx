@@ -12,7 +12,7 @@ export default async function AdminTicketsPage() {
     supabase
       .from("service_tickets")
       .select(
-        "id, ticket_number, customer_name, customer_phone, product_description, status, assigned_technician, created_at, updated_at, part_status",
+        "id, ticket_number, customer_name, customer_phone, product_description, status, warranty_status, assigned_technician, created_at, updated_at, part_status",
       )
       .order("updated_at", { ascending: true })
       .limit(500),

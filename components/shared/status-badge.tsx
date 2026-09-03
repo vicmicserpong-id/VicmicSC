@@ -2,8 +2,10 @@ import { Badge } from "@/components/ui/badge";
 import {
   QUEUE_STATUS_LABEL,
   TICKET_STATUS_LABEL,
+  WARRANTY_LABEL,
   type QueueStatus,
   type TicketStatus,
+  type WarrantyStatus,
 } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
@@ -26,6 +28,15 @@ const QUEUE_TONE: Record<QueueStatus, string> = {
   serving: "bg-emerald-100 text-emerald-700",
   completed: "bg-slate-100 text-slate-600",
   canceled: "bg-rose-100 text-rose-700",
+};
+
+// INW = ditanggung garansi (hijau). OOW = di luar garansi (netral).
+// CID = kerusakan akibat pemakaian (kuning). DOA = rusak dari awal (merah).
+const WARRANTY_TONE: Record<WarrantyStatus, string> = {
+  INW: "bg-emerald-100 text-emerald-700",
+  OOW: "bg-slate-100 text-slate-600",
+  CID: "bg-amber-100 text-amber-800",
+  DOA: "bg-rose-100 text-rose-700",
 };
 
 export function TicketStatusBadge({
@@ -52,6 +63,24 @@ export function QueueStatusBadge({
   return (
     <Badge variant="secondary" className={cn(QUEUE_TONE[status], className)}>
       {QUEUE_STATUS_LABEL[status]}
+    </Badge>
+  );
+}
+
+export function WarrantyBadge({
+  status,
+  className,
+}: {
+  status: WarrantyStatus;
+  className?: string;
+}) {
+  return (
+    <Badge
+      variant="secondary"
+      className={cn(WARRANTY_TONE[status], className)}
+      title={WARRANTY_LABEL[status]}
+    >
+      {status}
     </Badge>
   );
 }

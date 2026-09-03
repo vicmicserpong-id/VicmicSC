@@ -8,10 +8,10 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { TicketStatusBadge } from "@/components/shared/status-badge";
+import { TicketStatusBadge, WarrantyBadge } from "@/components/shared/status-badge";
 import { createClient } from "@/lib/supabase/client";
 import { sinceShort } from "@/lib/format";
-import type { TicketStatus } from "@/lib/constants";
+import type { TicketStatus, WarrantyStatus } from "@/lib/constants";
 import { pullNextTicket } from "@/lib/actions/tickets";
 
 type Row = {
@@ -20,6 +20,7 @@ type Row = {
   customer_name: string;
   product_description: string;
   status: TicketStatus;
+  warranty_status: WarrantyStatus;
   complaint_description: string;
   assigned_technician: string | null;
   created_at: string;
@@ -30,7 +31,7 @@ type Profile = { id: string; full_name: string | null };
 type LastChange = { ticket_id: string | null; changed_by: string | null };
 
 const SELECT_COLUMNS =
-  "id, ticket_number, customer_name, product_description, status, complaint_description, assigned_technician, created_at, updated_at";
+  "id, ticket_number, customer_name, product_description, status, warranty_status, complaint_description, assigned_technician, created_at, updated_at";
 
 export function Workbench({
   meId,
@@ -197,6 +198,7 @@ export function Workbench({
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-semibold">{row.ticket_number}</span>
                     <TicketStatusBadge status={row.status} />
+                    <WarrantyBadge status={row.warranty_status} />
                     {isMine && (
                       <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
                         Anda

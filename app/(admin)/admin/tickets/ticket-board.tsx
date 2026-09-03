@@ -7,7 +7,13 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { TICKET_STATUS_LABEL, type TicketStatus, type PartRequestStatus } from "@/lib/constants";
+import { WarrantyBadge } from "@/components/shared/status-badge";
+import {
+  TICKET_STATUS_LABEL,
+  type TicketStatus,
+  type PartRequestStatus,
+  type WarrantyStatus,
+} from "@/lib/constants";
 import { sinceShort, todayWIB, formatDateWIB } from "@/lib/format";
 import { downloadTextFile } from "@/lib/download";
 import { createClient } from "@/lib/supabase/client";
@@ -48,6 +54,7 @@ type Row = {
   customer_phone: string;
   product_description: string;
   status: TicketStatus;
+  warranty_status: WarrantyStatus;
   assigned_technician: string | null;
   created_at: string;
   updated_at: string;
@@ -58,7 +65,7 @@ type Profile = { id: string; full_name: string | null };
 type LastChange = { ticket_id: string | null; changed_by: string | null; changed_at: string | null };
 
 const SELECT_COLUMNS =
-  "id, ticket_number, customer_name, customer_phone, product_description, status, assigned_technician, created_at, updated_at, part_status";
+  "id, ticket_number, customer_name, customer_phone, product_description, status, warranty_status, assigned_technician, created_at, updated_at, part_status";
 
 // Kartu ditandai "Baru" kalau status terakhir berubah dalam rentang ini …
 const NEW_THRESHOLD_MS = 3 * 60 * 60 * 1000; // 3 jam
@@ -232,7 +239,11 @@ export function TicketBoard({
                         )}
                       >
                         <div className="flex items-center gap-1">
-                          <span className="truncate font-semibold">{t.ticket_number}</span>
+                          <span className="shrink-0 font-semibold">{t.ticket_number}</span>
+                          <WarrantyBadge
+                            status={t.warranty_status}
+                            className="h-4 border-0 px-1 text-[10px]"
+                          />
                           {needsPart && (
                             <Package
                               className="size-3 shrink-0 text-amber-600"
@@ -284,12 +295,13 @@ export function TicketBoard({
           </p>
         ) : (
           <div className="overflow-x-auto rounded-xl ring-1 ring-foreground/10">
-            <table className="w-full min-w-[680px] text-sm">
+            <table className="w-full min-w-[760px] text-sm">
               <thead className="bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
                   <th className="px-3 py-2 text-left font-medium">Masuk</th>
                   <th className="px-3 py-2 text-left font-medium">Selesai</th>
                   <th className="px-3 py-2 text-left font-medium">No. Servis</th>
+                  <th className="px-3 py-2 text-left font-medium">Garansi</th>
                   <th className="px-3 py-2 text-left font-medium">Nama</th>
                   <th className="px-3 py-2 text-left font-medium">Telepon</th>
                   <th className="px-3 py-2 text-left font-medium">Status</th>
@@ -308,6 +320,9 @@ export function TicketBoard({
                       <Link href={`/admin/tickets/${t.id}`} className="hover:underline">
                         {t.ticket_number}
                       </Link>
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-2">
+                      <WarrantyBadge status={t.warranty_status} />
                     </td>
                     <td className="px-3 py-2">{t.customer_name}</td>
                     <td className="whitespace-nowrap px-3 py-2 text-muted-foreground">
