@@ -338,7 +338,9 @@ export function TicketDetailView({
                 ? "Menunggu admin memesan/menerima sparepart — belum ada aksi untuk teknisi di sini."
                 : ticket.status === "IN_REPAIR" || ticket.status === "PART_INSTALLING"
                   ? "Pekerjaan teknisi selesai di tahap ini. Uji QC dijalankan admin."
-                  : "Tidak ada transisi lanjutan dari status ini."}
+                  : ticket.status === "QC_TESTING"
+                    ? "Sedang/menunggu Uji QC oleh admin."
+                    : "Tidak ada transisi lanjutan dari status ini."}
           </p>
         ) : (
           <div className="flex flex-wrap gap-2">
