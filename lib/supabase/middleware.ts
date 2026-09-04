@@ -11,6 +11,9 @@ const TECH_ROLES = new Set(["technician", "owner"]);
  * - /admin/*  -> butuh role admin/owner
  * - /tech/*   -> butuh role technician/owner
  * - /login    -> redirect ke dashboard sesuai role bila sudah login
+ * - /         -> staf yang sudah login langsung ke dashboard-nya (bukan
+ *                halaman antrean pelanggan) -- termasuk saat PWA dibuka
+ *                dari home screen (start_url "/")
  */
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
@@ -51,7 +54,7 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (user && (inStaffArea || path === "/login")) {
+  if (user && (inStaffArea || path === "/login" || path === "/")) {
     const { data: profile } = await supabase
       .from("profiles")
       .select("role")
@@ -60,7 +63,7 @@ export async function updateSession(request: NextRequest) {
     const role = profile?.role ?? "admin";
     const home = TECH_ROLES.has(role) && !ADMIN_ROLES.has(role) ? "/tech/workbench" : "/admin/queue";
 
-    if (path === "/login") {
+    if (path === "/login" || path === "/") {
       const url = request.nextUrl.clone();
       url.pathname = home;
       return NextResponse.redirect(url);

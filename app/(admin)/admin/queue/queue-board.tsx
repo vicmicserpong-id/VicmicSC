@@ -19,6 +19,7 @@ export function QueueBoard({ initial }: { initial: QueueRow[] }) {
   const router = useRouter();
   const [rows, setRows] = useState<QueueRow[]>(initial);
   const [actingId, setActingId] = useState<string | null>(null);
+  const [navigatingId, setNavigatingId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
   const supabaseRef = useRef<ReturnType<typeof createClient> | null>(null);
   if (!supabaseRef.current) supabaseRef.current = createClient();
@@ -64,6 +65,18 @@ export function QueueBoard({ initial }: { initial: QueueRow[] }) {
     });
   }
 
+  function accept(row: QueueRow) {
+    let href: string | null = null;
+    if (row.service_type === "service_baru") {
+      href = `/admin/intake/new?queue_id=${row.id}`;
+    } else if (row.service_type === "pengambilan_unit") {
+      href = `/admin/pickup?code=${encodeURIComponent(row.service_code ?? "")}`;
+    }
+    if (!href) return;
+    setNavigatingId(row.id);
+    startTransition(() => router.push(href));
+  }
+
   const serving = rows.filter((r) => r.status === "serving");
   const waiting = rows.filter((r) => r.status === "waiting");
 
@@ -85,20 +98,12 @@ export function QueueBoard({ initial }: { initial: QueueRow[] }) {
             <QueueCard
               key={row.id}
               row={row}
-              acting={actingId === row.id}
+              acting={actingId === row.id || navigatingId === row.id}
               onCall={() => run(row.id, () => callQueue(row.id))}
               onRecall={() => run(row.id, () => recallQueue(row.id))}
               onComplete={() => run(row.id, () => completeQueue(row.id))}
               onCancel={() => run(row.id, () => cancelQueue(row.id))}
-              onAccept={() => {
-                if (row.service_type === "service_baru") {
-                  router.push(`/admin/intake/new?queue_id=${row.id}`);
-                } else if (row.service_type === "pengambilan_unit") {
-                  router.push(
-                    `/admin/pickup?code=${encodeURIComponent(row.service_code ?? "")}`,
-                  );
-                }
-              }}
+              onAccept={() => accept(row)}
             />
           ))}
         </section>
@@ -117,7 +122,7 @@ export function QueueBoard({ initial }: { initial: QueueRow[] }) {
             <QueueCard
               key={row.id}
               row={row}
-              acting={actingId === row.id}
+              acting={actingId === row.id || navigatingId === row.id}
               onCall={() => run(row.id, () => callQueue(row.id))}
               onRecall={() => run(row.id, () => recallQueue(row.id))}
               onComplete={() => run(row.id, () => completeQueue(row.id))}

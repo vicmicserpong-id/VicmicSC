@@ -1,9 +1,21 @@
 "use client";
 
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
+import { Loader2 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+
+/** Label + spinner kecil selama link ini sedang dinavigasi (Next 15 useLinkStatus). */
+function NavLabel({ label }: { label: string }) {
+  const { pending } = useLinkStatus();
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      {label}
+      {pending && <Loader2 className="size-3 shrink-0 animate-spin opacity-70" />}
+    </span>
+  );
+}
 
 export function StaffNav({
   items,
@@ -30,7 +42,7 @@ export function StaffNav({
                 : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
             )}
           >
-            {item.label}
+            <NavLabel label={item.label} />
           </Link>
         );
       })}
