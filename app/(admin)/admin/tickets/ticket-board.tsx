@@ -106,7 +106,7 @@ export function TicketBoard({
       supabase
         .from("service_tickets")
         .select(SELECT_COLUMNS)
-        .order("updated_at", { ascending: true })
+        .order("updated_at", { ascending: false })
         .limit(500),
       supabase.from("profiles").select("id, full_name"),
       supabase.from("service_ticket_last_change").select("ticket_id, changed_by, changed_at"),
@@ -212,10 +212,12 @@ export function TicketBoard({
       {/* ── Kanban tiket aktif ─────────────────────────────────────── */}
       <div className="flex gap-2 overflow-x-auto pb-2">
         {BOARD_COLUMNS.map((status) => {
+          // Paling baru (terakhir berubah) di atas. Tiket yang lama diam tetap
+          // ditandai lewat badge ">2 hari" di kartunya, cuma tidak didahulukan urutannya.
           const items = activeRows
             .filter((t) => t.status === status)
             .slice()
-            .sort((a, b) => new Date(doneAt(a)).getTime() - new Date(doneAt(b)).getTime());
+            .sort((a, b) => new Date(doneAt(b)).getTime() - new Date(doneAt(a)).getTime());
           return (
             <div
               key={status}

@@ -14,7 +14,7 @@ export default async function AdminTicketsPage() {
       .select(
         "id, ticket_number, customer_name, customer_phone, product_description, serial_number, wo_rma_number, status, warranty_status, assigned_technician, created_at, updated_at, part_status",
       )
-      .order("updated_at", { ascending: true })
+      .order("updated_at", { ascending: false })
       .limit(500),
     supabase.from("profiles").select("id, full_name"),
     supabase.from("service_ticket_last_change").select("ticket_id, changed_by, changed_at"),
