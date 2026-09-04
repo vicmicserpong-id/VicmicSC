@@ -62,6 +62,8 @@ export type RecapData = {
   newTickets: number;
   doneTotal: number;
   perTech: { name: string; count: number }[];
+  /** Ringkasan pembersihan foto tiket lama (opsional — lihat lib/cleanup.ts). */
+  photoCleanup?: { ticketsCleaned: number; filesDeleted: number };
 };
 
 export function recapEmailHtml(d: RecapData): string {
@@ -96,6 +98,11 @@ export function recapEmailHtml(d: RecapData): string {
   <table style="border-collapse:collapse;font-size:14px;width:100%">
     ${techRows}
   </table>
+  ${
+    d.photoCleanup && d.photoCleanup.filesDeleted > 0
+      ? `<p style="margin:16px 0 0;color:#94a3b8;font-size:12px">Pemeliharaan: ${d.photoCleanup.filesDeleted} foto pada ${d.photoCleanup.ticketsCleaned} tiket lama (selesai/dibatalkan, tidak berubah &gt;14 hari) dihapus otomatis dari penyimpanan.</p>`
+      : ""
+  }
 </div>`;
 }
 

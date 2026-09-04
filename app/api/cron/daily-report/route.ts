@@ -2,11 +2,12 @@ import { NextResponse } from "next/server";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendEmail, recapEmailHtml, type RecapData } from "@/lib/email";
+import { cleanupOldTicketPhotos } from "@/lib/cleanup";
 import { todayWIB } from "@/lib/format";
 import type { ServiceType } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 // Dijadwalkan lewat vercel.json: "0 15 * * *" (15:00 UTC = 22:00 WIB).
 export async function GET(request: Request) {
@@ -57,6 +58,19 @@ export async function GET(request: Request) {
     }
   });
 
+  // Hapus foto tiket lama yang sudah tuntas — jaga kuota Supabase Storage
+  // (best-effort, gagal di sini tidak menggagalkan rekap/email).
+  let photoCleanup: { ticketsCleaned: number; filesDeleted: number; errors: string[] };
+  try {
+    photoCleanup = await cleanupOldTicketPhotos();
+    if (photoCleanup.errors.length > 0) {
+      console.error("[cron daily-report] sebagian pembersihan foto gagal:", photoCleanup.errors);
+    }
+  } catch (e) {
+    console.error("[cron daily-report] pembersihan foto gagal:", e);
+    photoCleanup = { ticketsCleaned: 0, filesDeleted: 0, errors: [(e as Error).message] };
+  }
+
   const data: RecapData = {
     day,
     queues: qByType,
@@ -66,6 +80,7 @@ export async function GET(request: Request) {
     perTech: [...perTechMap.entries()]
       .map(([id, count]) => ({ name: nameById.get(id) ?? "—", count }))
       .sort((a, b) => b.count - a.count),
+    photoCleanup,
   };
 
   const to = process.env.RECAP_EMAIL_RECIPIENT;
