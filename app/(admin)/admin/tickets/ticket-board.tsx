@@ -53,6 +53,7 @@ type Row = {
   customer_name: string;
   customer_phone: string;
   product_description: string;
+  serial_number: string | null;
   status: TicketStatus;
   warranty_status: WarrantyStatus;
   assigned_technician: string | null;
@@ -65,7 +66,7 @@ type Profile = { id: string; full_name: string | null };
 type LastChange = { ticket_id: string | null; changed_by: string | null; changed_at: string | null };
 
 const SELECT_COLUMNS =
-  "id, ticket_number, customer_name, customer_phone, product_description, status, warranty_status, assigned_technician, created_at, updated_at, part_status";
+  "id, ticket_number, customer_name, customer_phone, product_description, serial_number, status, warranty_status, assigned_technician, created_at, updated_at, part_status";
 
 // Kartu ditandai "Baru" kalau status terakhir berubah dalam rentang ini …
 const NEW_THRESHOLD_MS = 3 * 60 * 60 * 1000; // 3 jam
@@ -138,7 +139,8 @@ export function TicketBoard({
         t.ticket_number.toLowerCase().includes(q) ||
         t.customer_name.toLowerCase().includes(q) ||
         t.customer_phone.toLowerCase().includes(q) ||
-        t.product_description.toLowerCase().includes(q),
+        t.product_description.toLowerCase().includes(q) ||
+        (t.serial_number?.toLowerCase().includes(q) ?? false),
     );
   }, [tickets, q]);
 
@@ -177,7 +179,7 @@ export function TicketBoard({
             <Input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Cari no. tiket, nama, telepon, unit…"
+              placeholder="Cari no. tiket, nama, telepon, unit, SN…"
               className="pl-8"
             />
             {query && (
