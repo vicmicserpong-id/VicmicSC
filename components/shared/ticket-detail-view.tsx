@@ -579,6 +579,7 @@ export function TicketDetailView({
         <Info label="Garansi" value={WARRANTY_LABEL[ticket.warranty_status]} />
         <Info label="MTM / Model" value={ticket.mtm_number || "-"} />
         <Info label="Serial Number" value={ticket.serial_number || "-"} />
+        <Info label="No. WO/RMA" value={ticket.wo_rma_number || "-"} />
         <Info label="Email" value={ticket.customer_email || "-"} />
         <Info label="Diterima" value={formatDateTimeWIB(ticket.created_at)} />
         <Info label="Diperbarui" value={formatDateTimeWIB(ticket.updated_at)} />

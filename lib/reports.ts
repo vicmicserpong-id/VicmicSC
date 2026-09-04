@@ -31,6 +31,8 @@ type ExportTicketRow = {
   customer_name: string;
   customer_phone: string;
   product_description: string;
+  serial_number: string | null;
+  wo_rma_number: string | null;
   warranty_status: WarrantyStatus;
   assigned_technician: string | null;
   created_at: string;
@@ -38,7 +40,7 @@ type ExportTicketRow = {
 };
 
 const EXPORT_SELECT =
-  "ticket_number, status, customer_name, customer_phone, product_description, warranty_status, assigned_technician, created_at, updated_at";
+  "ticket_number, status, customer_name, customer_phone, product_description, serial_number, wo_rma_number, warranty_status, assigned_technician, created_at, updated_at";
 
 function ticketsToCsv(rows: ExportTicketRow[], nameById: Map<string, string>): string {
   const headers = [
@@ -47,6 +49,8 @@ function ticketsToCsv(rows: ExportTicketRow[], nameById: Map<string, string>): s
     "Nama Pelanggan",
     "No. WhatsApp",
     "Unit",
+    "Serial Number",
+    "No. WO/RMA",
     "Garansi",
     "Teknisi",
     "Tanggal Masuk",
@@ -58,6 +62,8 @@ function ticketsToCsv(rows: ExportTicketRow[], nameById: Map<string, string>): s
     r.customer_name,
     r.customer_phone,
     r.product_description,
+    r.serial_number ?? "",
+    r.wo_rma_number ?? "",
     WARRANTY_LABEL[r.warranty_status],
     r.assigned_technician ? (nameById.get(r.assigned_technician) ?? "-") : "-",
     formatDateTimeWIB(r.created_at),

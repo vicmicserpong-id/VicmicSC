@@ -38,6 +38,7 @@ const schema = z.object({
   product_description: z.string().trim().min(3, "Wajib diisi").max(150),
   mtm_number: z.string().trim().max(100).optional(),
   serial_number: z.string().trim().max(100).optional(),
+  wo_rma_number: z.string().trim().max(100).optional(),
   complaint_description: z.string().trim().min(5, "Jelaskan keluhan pelanggan").max(2000),
   physical_notes: z.string().trim().max(2000).optional(),
   acc_other: z.string().trim().max(200).optional(),
@@ -99,6 +100,7 @@ export function IntakeForm({
       product_description: "",
       mtm_number: "",
       serial_number: "",
+      wo_rma_number: "",
       complaint_description: "",
       physical_notes: "",
       acc_other: "",
@@ -125,6 +127,7 @@ export function IntakeForm({
         product_description: values.product_description,
         mtm_number: values.mtm_number?.trim() || null,
         serial_number: values.serial_number?.trim() || null,
+        wo_rma_number: values.wo_rma_number?.trim() || null,
         warranty_status: warranty,
         accessories: { ...acc, other: values.acc_other?.trim() ?? "" },
         complaint_description: values.complaint_description,
@@ -211,6 +214,10 @@ export function IntakeForm({
           <Field>
             <FieldLabel htmlFor="serial_number">Serial Number</FieldLabel>
             <Input id="serial_number" {...register("serial_number")} />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="wo_rma_number">No. WO/RMA</FieldLabel>
+            <Input id="wo_rma_number" placeholder="Nomor Work Order / RMA vendor" {...register("wo_rma_number")} />
           </Field>
         </div>
         <Field>

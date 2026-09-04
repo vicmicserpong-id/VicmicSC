@@ -15,6 +15,7 @@ export type TicketDataPatch = {
   product_description: string;
   mtm_number: string | null;
   serial_number: string | null;
+  wo_rma_number: string | null;
   warranty_status: WarrantyStatus;
   accessories: AccessoriesShape;
   complaint_description: string;
@@ -44,6 +45,7 @@ export async function updateTicketData(ticketId: string, patch: TicketDataPatch)
       product_description: patch.product_description.trim(),
       mtm_number: patch.mtm_number?.trim() || null,
       serial_number: patch.serial_number?.trim() || null,
+      wo_rma_number: patch.wo_rma_number?.trim() || null,
       warranty_status: patch.warranty_status,
       accessories: patch.accessories as unknown as Json,
       complaint_description: patch.complaint_description.trim(),

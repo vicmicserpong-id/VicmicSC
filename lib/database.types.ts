@@ -178,6 +178,7 @@ export type Database = {
           ticket_number: string
           updated_at: string
           warranty_status: Database["public"]["Enums"]["warranty_status_enum"]
+          wo_rma_number: string | null
         }
         Insert: {
           accessories?: Json
@@ -211,6 +212,7 @@ export type Database = {
           ticket_number: string
           updated_at?: string
           warranty_status?: Database["public"]["Enums"]["warranty_status_enum"]
+          wo_rma_number?: string | null
         }
         Update: {
           accessories?: Json
@@ -244,6 +246,7 @@ export type Database = {
           ticket_number?: string
           updated_at?: string
           warranty_status?: Database["public"]["Enums"]["warranty_status_enum"]
+          wo_rma_number?: string | null
         }
         Relationships: [
           {

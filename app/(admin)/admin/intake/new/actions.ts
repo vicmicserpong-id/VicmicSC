@@ -15,6 +15,7 @@ export type IntakePayload = {
   product_description: string;
   mtm_number: string | null;
   serial_number: string | null;
+  wo_rma_number: string | null;
   warranty_status: WarrantyStatus;
   accessories: AccessoriesShape;
   complaint_description: string;
@@ -58,6 +59,7 @@ export async function createServiceTicket(
       product_description: payload.product_description,
       mtm_number: payload.mtm_number,
       serial_number: payload.serial_number,
+      wo_rma_number: payload.wo_rma_number,
       warranty_status: payload.warranty_status,
       accessories: payload.accessories as unknown as Json,
       complaint_description: payload.complaint_description,
