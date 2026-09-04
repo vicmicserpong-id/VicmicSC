@@ -175,8 +175,8 @@ export function TicketBoard({
             {q ? ` (hasil filter dari ${tickets.length})` : ""} · realtime
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative w-full max-w-xs">
+        <div className="flex min-w-0 flex-1 items-center gap-2 sm:flex-none">
+          <div className="relative min-w-0 flex-1 sm:w-64 sm:flex-none">
             <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={query}
@@ -195,9 +195,16 @@ export function TicketBoard({
               </button>
             )}
           </div>
-          <Button variant="outline" size="sm" onClick={exportCsv} disabled={exporting}>
-            {exporting ? <Loader2 className="animate-spin" /> : <Download className="size-3.5" />}
-            Ekspor CSV
+          <Button
+            variant="outline"
+            size="icon-sm"
+            onClick={exportCsv}
+            disabled={exporting}
+            title="Ekspor CSV"
+            aria-label="Ekspor CSV"
+            className="shrink-0"
+          >
+            {exporting ? <Loader2 className="size-3.5 animate-spin" /> : <Download className="size-3.5" />}
           </Button>
         </div>
       </div>
