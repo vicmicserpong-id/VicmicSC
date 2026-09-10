@@ -14,11 +14,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldLabel, FieldError, FieldDescription } from "@/components/ui/field";
 import { PhotoUpload } from "@/components/shared/photo-upload";
+import { PhysicalChecklistInput } from "@/components/shared/physical-checklist";
 import {
   WARRANTY_LABEL,
-  PHYSICAL_CONDITION_TAGS,
   DEFAULT_ACCESSORIES,
   type WarrantyStatus,
+  type PhysicalChecklist,
 } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
@@ -79,7 +80,7 @@ export function IntakeForm({
     mouse: DEFAULT_ACCESSORIES.mouse,
     keyboard: DEFAULT_ACCESSORIES.keyboard,
   });
-  const [tags, setTags] = useState<string[]>([]);
+  const [checklist, setChecklist] = useState<PhysicalChecklist>({});
   const [photos, setPhotos] = useState<string[]>([]);
   const [terms, setTerms] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -107,10 +108,6 @@ export function IntakeForm({
     },
   });
 
-  function toggleTag(tag: string) {
-    setTags((t) => (t.includes(tag) ? t.filter((x) => x !== tag) : [...t, tag]));
-  }
-
   async function onSubmit(values: FormValues) {
     if (!terms) {
       toast.error("Pelanggan harus menyetujui syarat & ketentuan.");
@@ -131,7 +128,8 @@ export function IntakeForm({
         warranty_status: warranty,
         accessories: { ...acc, other: values.acc_other?.trim() ?? "" },
         complaint_description: values.complaint_description,
-        physical_condition_tags: tags,
+        physical_condition_tags: [],
+        physical_checklist: checklist,
         physical_notes: values.physical_notes?.trim() || null,
         photos_url: photos,
         customer_signature_url: null,
@@ -282,24 +280,8 @@ export function IntakeForm({
           <FieldError>{errors.complaint_description?.message}</FieldError>
         </Field>
         <Field>
-          <FieldLabel>Kondisi Fisik Saat Diterima</FieldLabel>
-          <div className="flex flex-wrap gap-2">
-            {PHYSICAL_CONDITION_TAGS.map((tag) => (
-              <button
-                key={tag}
-                type="button"
-                onClick={() => toggleTag(tag)}
-                className={cn(
-                  "rounded-full border px-3 py-1 text-xs transition-colors",
-                  tags.includes(tag)
-                    ? "border-amber-500 bg-amber-100 text-amber-900"
-                    : "border-input hover:bg-muted/50",
-                )}
-              >
-                {tag}
-              </button>
-            ))}
-          </div>
+          <FieldLabel>Checklist Kondisi Fisik Saat Diterima</FieldLabel>
+          <PhysicalChecklistInput value={checklist} onChange={setChecklist} />
         </Field>
         <Field>
           <FieldLabel htmlFor="physical_notes">Catatan Kondisi Tambahan</FieldLabel>

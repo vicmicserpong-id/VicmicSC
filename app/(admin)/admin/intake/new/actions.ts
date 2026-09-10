@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
-import type { AccessoriesShape, WarrantyStatus } from "@/lib/constants";
+import type { AccessoriesShape, PhysicalChecklist, WarrantyStatus } from "@/lib/constants";
 import type { Json } from "@/lib/database.types";
 
 export type IntakePayload = {
@@ -20,6 +20,7 @@ export type IntakePayload = {
   accessories: AccessoriesShape;
   complaint_description: string;
   physical_condition_tags: string[];
+  physical_checklist: PhysicalChecklist;
   physical_notes: string | null;
   photos_url: string[];
   customer_signature_url: string | null;
@@ -64,6 +65,7 @@ export async function createServiceTicket(
       accessories: payload.accessories as unknown as Json,
       complaint_description: payload.complaint_description,
       physical_condition_tags: payload.physical_condition_tags,
+      physical_checklist: payload.physical_checklist as unknown as Json,
       physical_notes: payload.physical_notes,
       photos_url: payload.photos_url,
       customer_signature_url: payload.customer_signature_url,

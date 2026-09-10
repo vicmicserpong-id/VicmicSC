@@ -123,6 +123,8 @@ export const WARRANTY_LABEL: Record<WarrantyStatus, string> = {
 };
 
 // ── Intake ──────────────────────────────────────────────────────────
+// Tag lama — dipertahankan hanya untuk MENAMPILKAN tiket yang sudah terlanjur
+// memakainya. Intake baru memakai INTAKE_CHECKLIST di bawah.
 export const PHYSICAL_CONDITION_TAGS = [
   "Baret halus",
   "Baret dalam",
@@ -140,6 +142,35 @@ export const PHYSICAL_CONDITION_TAGS = [
   "Kotor / berdebu",
   "Karet kaki hilang",
 ] as const;
+
+/**
+ * Checklist kondisi fisik saat unit diterima — meniru form kertas Vicmic.
+ * Tiap baris dijawab "Y" / "N", boleh dikosongkan bila tidak diperiksa.
+ * Disimpan di service_tickets.physical_checklist sebagai objek:
+ *   { "Cover (Atas) · Baret/Lecet": "Y", "Layar · Bersih": "N", ... }
+ */
+export const INTAKE_CHECKLIST: { group: string; items: string[] }[] = [
+  { group: "Cover (Atas)", items: ["Baret/Lecet", "Retak", "Renggang", "Penyok", "Tembus Baut"] },
+  { group: "Cover (Bawah)", items: ["Baret/Lecet", "Retak", "Renggang", "Penyok", "Tembus Baut"] },
+  { group: "Cover", items: ["Baret/Lecet", "Retak", "Renggang", "Penyok", "Tembus Baut"] },
+  { group: "Baut", items: ["Lengkap"] },
+  { group: "Mousepad", items: ["Bersih", "Baret/Lecet", "Klik Kiri", "Klik Kanan"] },
+  { group: "Layar", items: ["Bersih", "Touchscreen", "Baret/Pecah/Lecet", "Renggang"] },
+  { group: "Tombol Power", items: ["Berfungsi"] },
+  { group: "Keyboard", items: ["Lengkap", "Berfungsi"] },
+  { group: "Backlight Keyboard", items: ["Hidup"] },
+  { group: "Kamera", items: ["Berfungsi"] },
+  { group: "Microphone", items: ["Berfungsi"] },
+  { group: "Speaker", items: ["Berfungsi"] },
+  { group: "Port Charger", items: ["Berfungsi"] },
+  { group: "Engsel", items: ["Retak"] },
+];
+
+export type ChecklistValue = "Y" | "N";
+export type PhysicalChecklist = Record<string, ChecklistValue>;
+
+/** Kunci penyimpanan satu baris checklist. */
+export const checklistKey = (group: string, item: string) => `${group} · ${item}`;
 
 export type AccessoriesShape = {
   adaptor_ac: boolean;

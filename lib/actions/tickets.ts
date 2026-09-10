@@ -62,8 +62,8 @@ export type StatusChange = {
  * - Teknisi: hanya boleh mengikuti TICKET_STATUS_FLOW (alur maju/terdefinisi),
  *   tidak bisa memundurkan status semaunya, dan tidak bisa menarik tiket INTAKE
  *   di luar FIFO.
- * - Admin: HANYA boleh mengubah READY_FOR_PICKUP → CLOSED (menyerahkan unit ke
- *   pelanggan) — tidak boleh mengubah status bolak-balik di titik lain.
+ * - Admin: alur Uji QC & serah-terima (TICKET_STATUS_FLOW_ADMIN) + boleh
+ *   membatalkan servis dari status mana pun (alasan wajib).
  * - Owner: bebas pindah ke status apa pun (koreksi), TAPI wajib mengisi catatan
  *   alasan perubahan.
  */
@@ -80,11 +80,18 @@ export async function updateTicketStatus(input: StatusChange) {
       throw new Error("Wajib isi catatan alasan perubahan status.");
     }
   } else if (role === "admin") {
+    // Admin boleh membatalkan servis dari status mana pun (kecuali yang sudah
+    // terminal), plus alur Uji QC & serah-terima dari TICKET_STATUS_FLOW_ADMIN.
+    const allowCancel =
+      input.to === "CANCELLED" && input.from !== "CLOSED" && input.from !== "CANCELLED";
     const allowed = TICKET_STATUS_FLOW_ADMIN[input.from] ?? [];
-    if (!allowed.includes(input.to)) {
+    if (!allowCancel && !allowed.includes(input.to)) {
       throw new Error(
-        "Admin hanya bisa: Uji QC → Siap Diambil atau Tolak (kembali ke Diagnosa), dan Siap Diambil → Selesai. Untuk koreksi status lain, hubungi owner.",
+        "Admin hanya bisa: Uji QC → Siap Diambil atau Tolak (kembali ke Diagnosa), Siap Diambil → Selesai, dan membatalkan servis dari status mana pun. Untuk koreksi status lain, hubungi owner.",
       );
+    }
+    if (input.to === "CANCELLED" && !input.notes?.trim()) {
+      throw new Error("Wajib isi alasan pembatalan servis.");
     }
     if (input.from === "QC_TESTING" && input.to === "DIAGNOSING" && !input.notes?.trim()) {
       throw new Error("Wajib isi alasan penolakan saat Uji QC.");
@@ -125,9 +132,11 @@ export async function updateTicketStatus(input: StatusChange) {
       input.notes?.trim() ||
       (input.to === "CLOSED"
         ? "Unit diserahkan ke pelanggan."
-        : input.from === "QC_TESTING" && input.to === "DIAGNOSING"
-          ? "Ditolak saat Uji QC."
-          : null),
+        : input.to === "CANCELLED"
+          ? "Servis dibatalkan."
+          : input.from === "QC_TESTING" && input.to === "DIAGNOSING"
+            ? "Ditolak saat Uji QC."
+            : null),
   });
 
   // Tutup antrean pengambilan terkait bila ada (samakan dgn alur /admin/pickup).

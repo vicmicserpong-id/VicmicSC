@@ -14,10 +14,11 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldLabel, FieldError, FieldDescription } from "@/components/ui/field";
+import { PhysicalChecklistInput } from "@/components/shared/physical-checklist";
 import {
   WARRANTY_LABEL,
-  PHYSICAL_CONDITION_TAGS,
   type AccessoriesShape,
+  type PhysicalChecklist,
   type WarrantyStatus,
 } from "@/lib/constants";
 import { cn } from "@/lib/utils";
@@ -73,7 +74,10 @@ export function EditTicketForm({ ticket }: { ticket: Ticket }) {
     mouse: initialAcc.mouse,
     keyboard: initialAcc.keyboard,
   });
-  const [tags, setTags] = useState<string[]>(ticket.physical_condition_tags ?? []);
+  const oldTags = ticket.physical_condition_tags ?? [];
+  const [checklist, setChecklist] = useState<PhysicalChecklist>(
+    (ticket.physical_checklist as PhysicalChecklist | null) ?? {},
+  );
   const [submitting, setSubmitting] = useState(false);
 
   const {
@@ -97,10 +101,6 @@ export function EditTicketForm({ ticket }: { ticket: Ticket }) {
     },
   });
 
-  function toggleTag(tag: string) {
-    setTags((t) => (t.includes(tag) ? t.filter((x) => x !== tag) : [...t, tag]));
-  }
-
   async function onSubmit(values: FormValues) {
     setSubmitting(true);
     try {
@@ -116,7 +116,7 @@ export function EditTicketForm({ ticket }: { ticket: Ticket }) {
         warranty_status: warranty,
         accessories: { ...acc, other: values.acc_other?.trim() ?? "" },
         complaint_description: values.complaint_description,
-        physical_condition_tags: tags,
+        physical_checklist: checklist,
         physical_notes: values.physical_notes?.trim() || null,
       });
       toast.success("Data tiket diperbarui.");
@@ -249,25 +249,27 @@ export function EditTicketForm({ ticket }: { ticket: Ticket }) {
           />
           <FieldError>{errors.complaint_description?.message}</FieldError>
         </Field>
+        {oldTags.length > 0 && (
+          <Field>
+            <FieldLabel>Kondisi Fisik (format lama)</FieldLabel>
+            <div className="flex flex-wrap gap-1.5">
+              {oldTags.map((tag) => (
+                <span
+                  key={tag}
+                  className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-900"
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+            <FieldDescription>
+              Dicatat sebelum checklist dipakai — hanya tampilan, tidak bisa diubah.
+            </FieldDescription>
+          </Field>
+        )}
         <Field>
-          <FieldLabel>Kondisi Fisik Saat Diterima</FieldLabel>
-          <div className="flex flex-wrap gap-2">
-            {PHYSICAL_CONDITION_TAGS.map((tag) => (
-              <button
-                key={tag}
-                type="button"
-                onClick={() => toggleTag(tag)}
-                className={cn(
-                  "rounded-full border px-3 py-1 text-xs transition-colors",
-                  tags.includes(tag)
-                    ? "border-amber-500 bg-amber-100 text-amber-900"
-                    : "border-input hover:bg-muted/50",
-                )}
-              >
-                {tag}
-              </button>
-            ))}
-          </div>
+          <FieldLabel>Checklist Kondisi Fisik Saat Diterima</FieldLabel>
+          <PhysicalChecklistInput value={checklist} onChange={setChecklist} />
         </Field>
         <Field>
           <FieldLabel htmlFor="physical_notes">Catatan Kondisi Tambahan</FieldLabel>

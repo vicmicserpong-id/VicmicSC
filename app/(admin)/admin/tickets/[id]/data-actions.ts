@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
 import { requireFrontDesk } from "@/lib/auth";
-import type { AccessoriesShape, WarrantyStatus } from "@/lib/constants";
+import type { AccessoriesShape, PhysicalChecklist, WarrantyStatus } from "@/lib/constants";
 import type { Json } from "@/lib/database.types";
 
 export type TicketDataPatch = {
@@ -19,7 +19,7 @@ export type TicketDataPatch = {
   warranty_status: WarrantyStatus;
   accessories: AccessoriesShape;
   complaint_description: string;
-  physical_condition_tags: string[];
+  physical_checklist: PhysicalChecklist;
   physical_notes: string | null;
 };
 
@@ -49,7 +49,7 @@ export async function updateTicketData(ticketId: string, patch: TicketDataPatch)
       warranty_status: patch.warranty_status,
       accessories: patch.accessories as unknown as Json,
       complaint_description: patch.complaint_description.trim(),
-      physical_condition_tags: patch.physical_condition_tags,
+      physical_checklist: patch.physical_checklist as unknown as Json,
       physical_notes: patch.physical_notes?.trim() || null,
     })
     .eq("id", ticketId);

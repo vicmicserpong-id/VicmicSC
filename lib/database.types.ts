@@ -167,6 +167,7 @@ export type Database = {
           part_notes: string | null
           part_status: Database["public"]["Enums"]["part_request_status"]
           photos_url: string[] | null
+          physical_checklist: Json
           physical_condition_tags: string[] | null
           physical_notes: string | null
           product_description: string
@@ -201,6 +202,7 @@ export type Database = {
           part_notes?: string | null
           part_status?: Database["public"]["Enums"]["part_request_status"]
           photos_url?: string[] | null
+          physical_checklist?: Json
           physical_condition_tags?: string[] | null
           physical_notes?: string | null
           product_description: string
@@ -235,6 +237,7 @@ export type Database = {
           part_notes?: string | null
           part_status?: Database["public"]["Enums"]["part_request_status"]
           photos_url?: string[] | null
+          physical_checklist?: Json
           physical_condition_tags?: string[] | null
           physical_notes?: string | null
           product_description?: string
@@ -409,6 +412,7 @@ export type Database = {
           part_notes: string | null
           part_status: Database["public"]["Enums"]["part_request_status"]
           photos_url: string[] | null
+          physical_checklist: Json
           physical_condition_tags: string[] | null
           physical_notes: string | null
           product_description: string

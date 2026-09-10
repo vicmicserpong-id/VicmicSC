@@ -21,6 +21,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { TicketStatusBadge } from "@/components/shared/status-badge";
 import { TicketProgress } from "@/components/shared/ticket-progress";
+import { PhysicalChecklistView } from "@/components/shared/physical-checklist";
 import {
   Dialog,
   DialogContent,
@@ -39,6 +40,7 @@ import {
   PART_REQUEST_ELIGIBLE_STATUSES,
   type AccessoriesShape,
   type AppRole,
+  type PhysicalChecklist,
   type TicketStatus,
 } from "@/lib/constants";
 import { formatDateTimeWIB, waLink } from "@/lib/format";
@@ -65,8 +67,9 @@ const HIDDEN_TARGETS: TicketStatus[] = ["CLOSED"]; // ditangani meja depan (mode
 
 function needs(current: TicketStatus, target: TicketStatus) {
   return {
-    // Catatan diagnosa dicatat setiap kali meninggalkan status Diagnosa, apa pun tujuannya.
-    diagnosisNotes: current === "DIAGNOSING",
+    // Catatan diagnosa dicatat saat meninggalkan Diagnosa — kecuali kalau
+    // servisnya dibatalkan (cukup alasan pembatalan di kolom catatan biasa).
+    diagnosisNotes: current === "DIAGNOSING" && target !== "CANCELLED",
     // Catatan hasil QC diisi admin saat MELULUSKAN unit (bukan saat teknisi bilang "selesai").
     qcNotes: current === "QC_TESTING" && target === "READY_FOR_PICKUP",
   };
@@ -114,20 +117,27 @@ export function TicketDetailView({
   const [escalateNote, setEscalateNote] = useState("");
 
   const acc = ticket.accessories as unknown as AccessoriesShape;
+  const physicalChecklist = (ticket.physical_checklist ?? {}) as PhysicalChecklist;
   const visitedStatuses = new Set<TicketStatus>([
     ticket.status,
     ...logs.map((l) => l.new_status),
   ]);
+  const isTerminal = ticket.status === "CLOSED" || ticket.status === "CANCELLED";
   // Owner: bebas pindah ke status apa pun. Admin: Uji QC (Perbaikan/Pemasangan →
-  // QC → Lulus/Tolak) + serah-terima unit. Teknisi: alur maju TICKET_STATUS_FLOW.
+  // QC → Lulus/Tolak) + serah-terima unit, PLUS boleh membatalkan servis dari
+  // status mana pun. Teknisi: alur maju TICKET_STATUS_FLOW.
   const nextOptions =
     role === "owner"
       ? ALL_STATUSES.filter((s) => s !== ticket.status)
       : role === "admin"
-        ? (TICKET_STATUS_FLOW_ADMIN[ticket.status] ?? [])
+        ? [
+            ...(TICKET_STATUS_FLOW_ADMIN[ticket.status] ?? []),
+            ...(!isTerminal ? (["CANCELLED"] as TicketStatus[]) : []),
+          ]
         : (TICKET_STATUS_FLOW[ticket.status] ?? []).filter((s) => !HIDDEN_TARGETS.includes(s));
   const notesRequired = role === "owner";
   const isQcReject = (t: TicketStatus) => ticket.status === "QC_TESTING" && t === "DIAGNOSING";
+  const isCancel = (t: TicketStatus) => t === "CANCELLED";
 
   function pick(t: TicketStatus) {
     setTarget(t);
@@ -151,11 +161,13 @@ export function TicketDetailView({
 
   function submit() {
     if (!target || !req) return;
-    if ((notesRequired || isQcReject(target)) && !notes.trim()) {
+    if ((notesRequired || isQcReject(target) || isCancel(target)) && !notes.trim()) {
       toast.error(
-        isQcReject(target)
-          ? "Isi alasan penolakan saat Uji QC."
-          : "Wajib isi catatan alasan perubahan status.",
+        isCancel(target)
+          ? "Wajib isi alasan pembatalan servis."
+          : isQcReject(target)
+            ? "Isi alasan penolakan saat Uji QC."
+            : "Wajib isi catatan alasan perubahan status.",
       );
       return;
     }
@@ -357,12 +369,16 @@ export function TicketDetailView({
                 size="sm"
                 onClick={() => pick(t)}
                 className={
-                  isQcReject(t)
+                  isQcReject(t) || isCancel(t)
                     ? "border-destructive text-destructive hover:bg-destructive/10"
                     : undefined
                 }
               >
-                {isQcReject(t) ? "Tolak QC → Diagnosa" : transitionLabel(ticket.status, t)}
+                {isQcReject(t)
+                  ? "Tolak QC → Diagnosa"
+                  : isCancel(t)
+                    ? "Batalkan Servis"
+                    : transitionLabel(ticket.status, t)}
               </Button>
             ))}
           </div>
@@ -397,11 +413,13 @@ export function TicketDetailView({
             <Field>
               <FieldLabel htmlFor="nt">
                 Catatan{" "}
-                {isQcReject(target)
-                  ? "(wajib — alasan penolakan QC)"
-                  : notesRequired
-                    ? "(wajib — alasan perubahan)"
-                    : "(opsional)"}
+                {isCancel(target)
+                  ? "(wajib — alasan pembatalan)"
+                  : isQcReject(target)
+                    ? "(wajib — alasan penolakan QC)"
+                    : notesRequired
+                      ? "(wajib — alasan perubahan)"
+                      : "(opsional)"}
               </FieldLabel>
               <Textarea
                 id="nt"
@@ -413,9 +431,11 @@ export function TicketDetailView({
             <div className="flex gap-2">
               <Button onClick={submit} disabled={pending}>
                 {pending ? <Loader2 className="animate-spin" /> : <Check />}
-                {isQcReject(target)
-                  ? "Konfirmasi Tolak QC → Diagnosa"
-                  : `Konfirmasi: ${transitionLabel(ticket.status, target)}`}
+                {isCancel(target)
+                  ? "Konfirmasi Batalkan Servis"
+                  : isQcReject(target)
+                    ? "Konfirmasi Tolak QC → Diagnosa"
+                    : `Konfirmasi: ${transitionLabel(ticket.status, target)}`}
               </Button>
               <Button variant="ghost" onClick={() => setTarget(null)} disabled={pending}>
                 Batal
@@ -609,6 +629,12 @@ export function TicketDetailView({
           <p className="font-semibold">Keluhan</p>
           <p className="text-muted-foreground">{ticket.complaint_description}</p>
         </div>
+        {physicalChecklist && Object.keys(physicalChecklist).length > 0 && (
+          <div>
+            <p className="font-semibold">Checklist kondisi fisik saat diterima</p>
+            <PhysicalChecklistView data={physicalChecklist} />
+          </div>
+        )}
         {ticket.physical_condition_tags && ticket.physical_condition_tags.length > 0 && (
           <div>
             <p className="font-semibold">Kondisi fisik saat diterima</p>
