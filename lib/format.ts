@@ -75,13 +75,25 @@ export function monthLabelWIB(yearMonth: string): string {
   return new Intl.DateTimeFormat("id-ID", { month: "long", year: "numeric", timeZone: "Asia/Jakarta" }).format(d);
 }
 
-/** Selisih waktu singkat dari `iso` sampai sekarang, mis. "12 mnt". */
+/**
+ * Selisih waktu singkat dari `iso` sampai sekarang: "12 mnt" (<1 jam),
+ * "3 jam 8 mnt" (<1 hari), "2 hari 5 jam" (<1 bulan), lalu "1 bulan 4 hari".
+ * Naik satuan begitu lewat ambang berikutnya supaya angka tidak makin
+ * panjang untuk tiket yang lama diam (mis. kartu kanban yang butuh perhatian).
+ */
 export function sinceShort(iso: string): string {
   const mins = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 60000));
   if (mins < 1) return "baru saja";
   if (mins < 60) return `${mins} mnt`;
-  const h = Math.floor(mins / 60);
-  return `${h} jam ${mins % 60} mnt`;
+
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours} jam ${mins % 60} mnt`;
+
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days} hari ${hours % 24} jam`;
+
+  const months = Math.floor(days / 30);
+  return `${months} bulan ${days % 30} hari`;
 }
 
 /** Normalisasi nomor telepon Indonesia ke format wa.me (62xxxxxxxxxx). */
