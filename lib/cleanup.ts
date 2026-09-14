@@ -6,8 +6,8 @@ import { STORAGE_BUCKET } from "@/lib/constants";
 /** Foto unit pada tiket yang sudah tuntas (Selesai/Dibatalkan) dihapus setelah sekian hari. */
 export const PHOTO_RETENTION_DAYS = 14;
 
-/** Ambil path relatif-ke-bucket dari URL publik Supabase Storage. */
-function storagePathFromPublicUrl(url: string): string | null {
+/** Ambil path relatif-ke-bucket dari URL publik Supabase Storage, atau null. */
+function supabaseStoragePath(url: string): string | null {
   const marker = `/object/public/${STORAGE_BUCKET}/`;
   const i = url.indexOf(marker);
   if (i === -1) return null;
@@ -15,6 +15,41 @@ function storagePathFromPublicUrl(url: string): string | null {
     return decodeURIComponent(url.slice(i + marker.length));
   } catch {
     return url.slice(i + marker.length);
+  }
+}
+
+/** Ambil path relatif (mis. "units/2026/09/xxxx.webp") dari URL vicmic-file-server, atau null. */
+function fileServerPath(url: string): string | null {
+  const uploadUrl = process.env.PHOTO_UPLOAD_URL;
+  if (!uploadUrl) return null;
+  try {
+    const fileHost = new URL(uploadUrl).host;
+    const u = new URL(url);
+    if (u.host !== fileHost) return null;
+    const marker = "/uploads/";
+    const i = u.pathname.indexOf(marker);
+    if (i === -1) return null;
+    return decodeURIComponent(u.pathname.slice(i + marker.length));
+  } catch {
+    return null;
+  }
+}
+
+/** Minta vicmic-file-server menghapus satu file. Lempar error kalau gagal. */
+async function deleteFromFileServer(path: string): Promise<void> {
+  const deleteUrl = process.env.PHOTO_DELETE_URL;
+  const secret = process.env.PHOTO_UPLOAD_SECRET;
+  if (!deleteUrl || !secret) {
+    throw new Error("PHOTO_DELETE_URL / PHOTO_UPLOAD_SECRET belum diset.");
+  }
+  const res = await fetch(deleteUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${secret}` },
+    body: JSON.stringify({ path }),
+  });
+  if (!res.ok) {
+    const data: { error?: string } | null = await res.json().catch(() => null);
+    throw new Error(data?.error ?? `vicmic-file-server membalas status ${res.status}.`);
   }
 }
 
@@ -27,8 +62,10 @@ export type PhotoCleanupResult = {
 /**
  * Hapus foto unit (Storage + kolom photos_url) untuk tiket CLOSED/CANCELLED
  * yang sudah tidak berubah lebih dari PHOTO_RETENTION_DAYS hari — supaya
- * kuota Supabase Storage (paket gratis) tidak penuh. Best-effort: satu
- * tiket gagal tidak menghentikan yang lain.
+ * kuota penyimpanan tidak penuh. Menangani DUA sumber foto sekaligus:
+ * foto lama di Supabase Storage (peninggalan sebelum migrasi) dan foto baru
+ * di vicmic-file-server (hosting Exabytes). Best-effort: satu tiket/foto
+ * gagal tidak menghentikan yang lain.
  */
 export async function cleanupOldTicketPhotos(): Promise<PhotoCleanupResult> {
   const supabase = createAdminClient();
@@ -54,18 +91,41 @@ export async function cleanupOldTicketPhotos(): Promise<PhotoCleanupResult> {
     const photos = t.photos_url ?? [];
     if (photos.length === 0) continue;
 
-    const paths = photos
-      .map(storagePathFromPublicUrl)
-      .filter((p): p is string => !!p);
-
-    if (paths.length > 0) {
-      const { error: rmErr } = await supabase.storage.from(STORAGE_BUCKET).remove(paths);
-      if (rmErr) {
-        errors.push(`${t.ticket_number}: ${rmErr.message}`);
+    const supabasePaths: string[] = [];
+    const fileServerPaths: string[] = [];
+    for (const url of photos) {
+      const sp = supabaseStoragePath(url);
+      if (sp) {
+        supabasePaths.push(sp);
         continue;
       }
-      filesDeleted += paths.length;
+      const fp = fileServerPath(url);
+      if (fp) fileServerPaths.push(fp);
     }
+
+    let ok = true;
+
+    if (supabasePaths.length > 0) {
+      const { error: rmErr } = await supabase.storage.from(STORAGE_BUCKET).remove(supabasePaths);
+      if (rmErr) {
+        errors.push(`${t.ticket_number} (Supabase): ${rmErr.message}`);
+        ok = false;
+      } else {
+        filesDeleted += supabasePaths.length;
+      }
+    }
+
+    for (const path of fileServerPaths) {
+      try {
+        await deleteFromFileServer(path);
+        filesDeleted += 1;
+      } catch (e) {
+        errors.push(`${t.ticket_number} (Exabytes): ${(e as Error).message}`);
+        ok = false;
+      }
+    }
+
+    if (!ok) continue;
 
     const { error: updErr } = await supabase
       .from("service_tickets")

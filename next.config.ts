@@ -17,11 +17,18 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   images: {
     remotePatterns: [
-      // Supabase Storage — bucket publik untuk foto unit
+      // Supabase Storage — foto lama, dari sebelum pindah ke vicmic-file-server
       {
         protocol: "https",
         hostname: "tmgivkpadfixkhkxltup.supabase.co",
         pathname: "/storage/v1/object/public/**",
+      },
+      // vicmic-file-server di hosting Exabytes — subdomain apa pun di vicmic.id
+      // (mis. files.vicmic.id, foto.vicmic.id) menyimpan foto unit servis.
+      {
+        protocol: "https",
+        hostname: "*.vicmic.id",
+        pathname: "/uploads/**",
       },
     ],
   },

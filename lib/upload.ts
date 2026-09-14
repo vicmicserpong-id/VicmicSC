@@ -1,11 +1,8 @@
 import imageCompression from "browser-image-compression";
 
-import { createClient } from "@/lib/supabase/client";
-import { STORAGE_BUCKET } from "@/lib/constants";
-
 /**
  * Kompres gambar sebelum upload: WebP, sisi terpanjang maks 1280px,
- * target ~150-200 KB. Selalu dijalankan sebelum kirim ke Supabase Storage.
+ * target ~150-200 KB. Selalu dijalankan sebelum kirim ke server foto.
  */
 export async function compressImage(file: File | Blob): Promise<File> {
   const input =
@@ -19,17 +16,22 @@ export async function compressImage(file: File | Blob): Promise<File> {
   });
 }
 
-/** Kompres lalu upload ke bucket `vicmic-photos`. Mengembalikan URL publik. */
+/**
+ * Kompres lalu unggah lewat /api/upload-photo — diteruskan server-ke-server
+ * ke vicmic-file-server di hosting Exabytes (bukan Supabase Storage lagi,
+ * supaya kuota Supabase tidak dipakai foto). Mengembalikan URL publik.
+ */
 export async function uploadImage(file: File | Blob, folder: "units"): Promise<string> {
   const compressed = await compressImage(file);
-  const supabase = createClient();
-  const path = `${folder}/${Date.now()}-${crypto.randomUUID()}.webp`;
 
-  const { error } = await supabase.storage.from(STORAGE_BUCKET).upload(path, compressed, {
-    contentType: "image/webp",
-    upsert: false,
-  });
-  if (error) throw new Error(error.message);
+  const body = new FormData();
+  body.set("file", compressed, "photo.webp");
+  body.set("folder", folder);
 
-  return supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path).data.publicUrl;
+  const res = await fetch("/api/upload-photo", { method: "POST", body });
+  const data: { url?: string; error?: string } | null = await res.json().catch(() => null);
+  if (!res.ok || !data?.url) {
+    throw new Error(data?.error ?? "Gagal mengunggah foto.");
+  }
+  return data.url;
 }
