@@ -16,6 +16,11 @@ const withPWA = withPWAInit({
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   images: {
+    // Semua foto yang ditampilkan (unit servis, logo) sudah pas ukuran & formatnya
+    // (dikompres WebP <=1280px di klien sebelum unggah) -- optimisasi server Vercel
+    // tidak menambah manfaat, cuma memakai kuota "Image Optimization" (5rb/bulan
+    // di paket gratis). Matikan supaya next/image langsung serve apa adanya.
+    unoptimized: true,
     remotePatterns: [
       // Supabase Storage — foto lama, dari sebelum pindah ke vicmic-file-server
       {
