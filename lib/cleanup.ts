@@ -44,7 +44,12 @@ async function deleteFromFileServer(path: string): Promise<void> {
   }
   const res = await fetch(deleteUrl, {
     method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${secret}` },
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${secret}`,
+      // Hosting Exabytes memblokir request tanpa User-Agent yang wajar (dianggap bot).
+      "User-Agent": "Mozilla/5.0 (compatible; VicmicServiceApp/1.0; +https://service.vicmic.id)",
+    },
     body: JSON.stringify({ path }),
   });
   if (!res.ok) {

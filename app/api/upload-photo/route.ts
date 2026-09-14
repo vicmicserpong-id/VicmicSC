@@ -52,7 +52,13 @@ export async function POST(request: Request) {
   try {
     upstream = await fetch(uploadUrl, {
       method: "POST",
-      headers: { Authorization: `Bearer ${secret}` },
+      headers: {
+        Authorization: `Bearer ${secret}`,
+        // Hosting Exabytes memblokir request tanpa User-Agent yang wajar
+        // (dianggap bot) -- default fetch server-to-server tidak punya ini.
+        "User-Agent":
+          "Mozilla/5.0 (compatible; VicmicServiceApp/1.0; +https://service.vicmic.id)",
+      },
       body: forward,
     });
   } catch (e) {
